@@ -32,6 +32,7 @@
     <color name="tab_selected">#1565C0</color>
     <color name="tab_unselected">#90CAF9</color>
     <color name="tab_indicator">#FFD600</color>
+    <color name="tab_icon_color">#1565C0</color>
     
     <!-- Sombras y Overlays -->
     <color name="shadow_light">#1A1565C0</color>
