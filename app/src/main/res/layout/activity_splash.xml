@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/gradient_background">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- Logo de Zeus -->
+        <ImageView
+            android:id="@+id/zeusLogo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@mipmap/ic_launcher"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/cd_logo" />
+
+        <!-- Rayo electrico -->
+        <ImageView
+            android:id="@+id/zeusBolt"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_zeus_bolt"
+            android:contentDescription="@string/cd_bolt"
+            android:layout_marginTop="-16dp"
+            android:alpha="0.8" />
+
+        <!-- Titulo ZEUS -->
+        <TextView
+            android:id="@+id/titleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ZEUS"
+            android:textSize="48sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:layout_marginTop="24dp"
+            android:shadowColor="@color/zeus_primary_dark"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="4" />
+
+        <!-- Subtitulo -->
+        <TextView
+            android:id="@+id/subtitleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_slogan"
+            android:textSize="14sp"
+            android:textColor="@color/zeus_bolt_light"
+            android:layout_marginTop="8dp"
+            android:letterSpacing="0.05" />
+
+        <!-- Progress Bar -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="32dp"
+            android:indeterminateTint="@color/white"
+            android:indeterminate="true" />
+
+        <!-- Version -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="v1.0.0"
+            android:textSize="12sp"
+            android:textColor="@color/zeus_text_hint"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+
+    <!-- Texto inferior -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="by Zeus Suite Team"
+        android:textSize="11sp"
+        android:textColor="@color/zeus_text_hint"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="24dp" />
+
+</RelativeLayout>

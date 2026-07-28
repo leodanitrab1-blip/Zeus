@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores Principales Zeus -->
+    <color name="zeus_primary">#1565C0</color>
+    <color name="zeus_primary_light">#1E88E5</color>
+    <color name="zeus_primary_dark">#0D47A1</color>
+    
+    <!-- Fondo y Superficies -->
+    <color name="zeus_background">#F0F4FA</color>
+    <color name="zeus_surface">#FFFFFF</color>
+    <color name="zeus_card_background">#FAFCFE</color>
+    
+    <!-- Acentos -->
+    <color name="zeus_accent">#2962FF</color>
+    <color name="zeus_bolt">#FFD600</color>
+    <color name="zeus_bolt_light">#FFE082</color>
+    
+    <!-- Textos -->
+    <color name="zeus_text_primary">#1A237E</color>
+    <color name="zeus_text_secondary">#5C6BC0</color>
+    <color name="zeus_text_hint">#90CAF9</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    
+    <!-- Estados -->
+    <color name="zeus_success">#00C853</color>
+    <color name="zeus_warning">#FFD600</color>
+    <color name="zeus_error">#FF1744</color>
+    <color name="zeus_info">#2979FF</color>
+    
+    <!-- TabLayout -->
+    <color name="tab_selected">#1565C0</color>
+    <color name="tab_unselected">#90CAF9</color>
+    <color name="tab_indicator">#FFD600</color>
+    
+    <!-- Sombras y Overlays -->
+    <color name="shadow_light">#1A1565C0</color>
+    <color name="overlay_dark">#80000000</color>
+    
+    <!-- Degradados -->
+    <color name="gradient_start">#0D47A1</color>
+    <color name="gradient_center">#1565C0</color>
+    <color name="gradient_end">#1E88E5</color>
+</resources>

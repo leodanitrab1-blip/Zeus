@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/zeus_background">
+
+    <!-- Barra Superior -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/zeus_primary"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/margin_medium"
+        android:elevation="4dp">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_zeus_bolt"
+            android:contentDescription="@string/cd_bolt"
+            android:layout_marginEnd="@dimen/margin_small" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/app_name"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+
+        <ImageView
+            android:id="@+id/btnSettings"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_settings"
+            android:contentDescription="Configuracion"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+    </LinearLayout>
+
+    <!-- Contenedor Principal -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal" />
+
+    <!-- Barra de Navegacion Inferior -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/tab_height"
+        android:background="@color/zeus_surface"
+        android:elevation="8dp"
+        app:tabMode="fixed"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="@color/tab_indicator"
+        app:tabIndicatorHeight="@dimen/tab_indicator_height"
+        app:tabSelectedTextColor="@color/tab_selected"
+        app:tabTextColor="@color/tab_unselected"
+        app:tabIconTint="@color/tab_icon_color"
+        app:tabRippleColor="@color/zeus_primary_light"
+        app:tabPaddingStart="@dimen/padding_small"
+        app:tabPaddingEnd="@dimen/padding_small" />
+
+</LinearLayout>

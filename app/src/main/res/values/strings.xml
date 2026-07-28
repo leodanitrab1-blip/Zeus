@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nombre de la App -->
+    <string name="app_name">Zeus Suite</string>
+    <string name="app_slogan">PDF • Big Data • IA • Automatización</string>
+    
+    <!-- Navegación -->
+    <string name="nav_pdf">PDF</string>
+    <string name="nav_bigdata">Big Data</string>
+    <string name="nav_ai">IA</string>
+    <string name="nav_automation">Automatización</string>
+    
+    <!-- Módulo PDF -->
+    <string name="pdf_title">Módulo PDF</string>
+    <string name="pdf_merge">Unir PDFs</string>
+    <string name="pdf_merge_desc">Combina múltiples archivos PDF en uno solo</string>
+    <string name="pdf_split">Dividir PDF</string>
+    <string name="pdf_split_desc">Separa un PDF en varios archivos</string>
+    <string name="pdf_sign">Firmar PDF</string>
+    <string name="pdf_sign_desc">Agrega firma digital a documentos</string>
+    <string name="pdf_compress">Comprimir PDF</string>
+    <string name="pdf_compress_desc">Reduce el tamaño de archivos PDF</string>
+    <string name="pdf_convert">Convertir PDF</string>
+    <string name="pdf_convert_desc">Convierte entre diferentes formatos</string>
+    <string name="pdf_form">Rellenar Formularios</string>
+    <string name="pdf_form_desc">Completa formularios PDF automáticamente</string>
+    <string name="pdf_create">Crear PDF</string>
+    <string name="pdf_create_desc">Genera PDFs desde cero o plantillas</string>
+    
+    <!-- Módulo Big Data -->
+    <string name="bigdata_title">Módulo Big Data</string>
+    <string name="bigdata_csv">Abrir CSV</string>
+    <string name="bigdata_csv_desc">Archivos CSV de gran tamaño</string>
+    <string name="bigdata_excel">Abrir Excel</string>
+    <string name="bigdata_excel_desc">Archivos Excel con millones de registros</string>
+    <string name="bigdata_filter">Filtrar Datos</string>
+    <string name="bigdata_filter_desc">Filtros avanzados para grandes volúmenes</string>
+    <string name="bigdata_search">Buscar</string>
+    <string name="bigdata_search_desc">Búsqueda rápida en millones de registros</string>
+    <string name="bigdata_chart">Graficar</string>
+    <string name="bigdata_chart_desc">Genera gráficos profesionales</string>
+    <string name="bigdata_stats">Estadísticas</string>
+    <string name="bigdata_stats_desc">Análisis estadístico completo</string>
+    
+    <!-- Módulo IA -->
+    <string name="ai_title">Módulo IA</string>
+    <string name="ai_query">Consultar</string>
+    <string name="ai_query_desc">Haz preguntas sobre tus datos</string>
+    <string name="ai_summary">Resumir</string>
+    <string name="ai_summary_desc">Genera resúmenes automáticos</string>
+    <string name="ai_anomaly">Anomalías</string>
+    <string name="ai_anomaly_desc">Detecta patrones irregulares</string>
+    <string name="ai_report">Reporte Ejecutivo</string>
+    <string name="ai_report_desc">Informes profesionales automáticos</string>
+    <string name="ai_fill">Auto-llenado</string>
+    <string name="ai_fill_desc">Llena documentos usando datos</string>
+    
+    <!-- Módulo Automatización -->
+    <string name="auto_title">Módulo Automatización</string>
+    <string name="auto_excel_pdf">Excel → PDF</string>
+    <string name="auto_excel_pdf_desc">Convierte Excel a PDF profesional</string>
+    <string name="auto_csv_report">CSV → Reporte</string>
+    <string name="auto_csv_report_desc">Genera reportes desde CSV</string>
+    <string name="auto_batch">Lote de PDFs</string>
+    <string name="auto_batch_desc">Procesa cientos de documentos</string>
+    <string name="auto_invoice">Facturas</string>
+    <string name="auto_invoice_desc">Analiza facturas automáticamente</string>
+    <string name="auto_statement">Estados de Cuenta</string>
+    <string name="auto_statement_desc">Análisis de estados financieros</string>
+    
+    <!-- Acciones Comunes -->
+    <string name="action_select_file">Seleccionar Archivo</string>
+    <string name="action_process">Procesar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_share">Compartir</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_confirm">Confirmar</string>
+    
+    <!-- Mensajes -->
+    <string name="msg_processing">Procesando…</string>
+    <string name="msg_success">Operación exitosa</string>
+    <string name="msg_error">Error al procesar</string>
+    <string name="msg_no_file">No se ha seleccionado archivo</string>
+    <string name="msg_permission">Se requieren permisos de almacenamiento</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_logo">Logo de Zeus Suite</string>
+    <string name="cd_bolt">Rayo de Zeus</string>
+    <string name="cd_module_icon">Ícono del módulo</string>
+</resources>

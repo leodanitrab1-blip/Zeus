@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema Principal de Zeus -->
+    <style name="Theme.Zeus" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Colores Primarios -->
+        <item name="colorPrimary">@color/zeus_primary</item>
+        <item name="colorPrimaryVariant">@color/zeus_primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <!-- Colores Secundarios -->
+        <item name="colorSecondary">@color/zeus_bolt</item>
+        <item name="colorSecondaryVariant">@color/zeus_bolt_light</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        <!-- Fondo y Superficie -->
+        <item name="android:windowBackground">@color/zeus_background</item>
+        <item name="colorSurface">@color/zeus_surface</item>
+        <item name="colorOnSurface">@color/zeus_text_primary</item>
+        
+        <!-- Barra de Estado -->
+        <item name="android:statusBarColor">@color/zeus_primary_dark</item>
+        <item name="android:navigationBarColor">@color/zeus_primary_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Textos -->
+        <item name="android:textColorPrimary">@color/zeus_text_primary</item>
+        <item name="android:textColorSecondary">@color/zeus_text_secondary</item>
+        <item name="android:textColorHint">@color/zeus_text_hint</item>
+        
+        <!-- Componentes Material -->
+        <item name="materialCardViewStyle">@style/ZeusCard</item>
+        <item name="tabStyle">@style/ZeusTab</item>
+        <item name="bottomNavigationStyle">@style/ZeusBottomNav</item>
+    </style>
+    
+    <!-- Tema Splash -->
+    <style name="Theme.Zeus.Splash" parent="Theme.Zeus">
+        <item name="android:windowBackground">@drawable/gradient_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    
+    <!-- Estilo de Cards -->
+    <style name="ZeusCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/zeus_card_background</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="cardMaxElevation">8dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/zeus_primary_light</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+    
+    <!-- Estilo de Tabs -->
+    <style name="ZeusTab" parent="Widget.MaterialComponents.TabLayout">
+        <item name="tabBackground">@color/zeus_surface</item>
+        <item name="tabTextColor">@color/tab_icon_color</item>
+        <item name="tabIconTint">@color/tab_icon_color</item>
+        <item name="tabIndicatorColor">@color/tab_indicator</item>
+        <item name="tabIndicatorHeight">3dp</item>
+        <item name="tabSelectedTextColor">@color/tab_selected</item>
+        <item name="tabTextAppearance">@style/ZeusTabText</item>
+    </style>
+    
+    <!-- Texto de Tabs -->
+    <style name="ZeusTabText" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+    
+    <!-- Bottom Navigation -->
+    <style name="ZeusBottomNav" parent="Widget.MaterialComponents.BottomNavigationView">
+        <item name="android:background">@color/zeus_surface</item>
+        <item name="itemTextColor">@color/tab_icon_color</item>
+        <item name="itemIconTint">@color/tab_icon_color</item>
+    </style>
+    
+    <!-- Botones -->
+    <style name="ZeusButton" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/zeus_primary</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:paddingHorizontal">24dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.1</item>
+    </style>
+    
+    <style name="ZeusButtonOutline" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/zeus_primary</item>
+        <item name="android:textColor">@color/zeus_primary</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>
