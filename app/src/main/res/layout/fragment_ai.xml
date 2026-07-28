@@ -76,7 +76,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_query"
+                        android:src="@drawable/ic_ai"
                         android:contentDescription="Consultar" />
 
                     <LinearLayout
@@ -106,7 +106,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -131,7 +131,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_summary"
+                        android:src="@drawable/ic_ai"
                         android:contentDescription="Resumir" />
 
                     <LinearLayout
@@ -161,7 +161,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -186,7 +186,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_anomaly"
+                        android:src="@drawable/ic_ai"
                         android:contentDescription="Anomalias" />
 
                     <LinearLayout
@@ -216,7 +216,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -241,7 +241,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_report"
+                        android:src="@drawable/ic_ai"
                         android:contentDescription="Reporte" />
 
                     <LinearLayout
@@ -271,7 +271,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -296,7 +296,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_autofill"
+                        android:src="@drawable/ic_ai"
                         android:contentDescription="Auto-llenado" />
 
                     <LinearLayout
@@ -326,7 +326,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>

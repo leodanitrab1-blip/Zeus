@@ -76,7 +76,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_csv"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="CSV" />
 
                     <LinearLayout
@@ -106,7 +106,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -131,7 +131,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_excel"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="Excel" />
 
                     <LinearLayout
@@ -161,7 +161,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -186,7 +186,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_filter"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="Filtrar" />
 
                     <LinearLayout
@@ -216,7 +216,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -241,7 +241,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_search"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="Buscar" />
 
                     <LinearLayout
@@ -271,7 +271,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -296,7 +296,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_chart"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="Graficar" />
 
                     <LinearLayout
@@ -326,7 +326,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -351,7 +351,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_stats"
+                        android:src="@drawable/ic_bigdata"
                         android:contentDescription="Estadisticas" />
 
                     <LinearLayout
@@ -381,7 +381,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>

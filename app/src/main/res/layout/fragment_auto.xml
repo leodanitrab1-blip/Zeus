@@ -76,7 +76,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_excel_pdf"
+                        android:src="@drawable/ic_auto"
                         android:contentDescription="Excel a PDF" />
 
                     <LinearLayout
@@ -106,7 +106,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -131,7 +131,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_csv_report"
+                        android:src="@drawable/ic_auto"
                         android:contentDescription="CSV a Reporte" />
 
                     <LinearLayout
@@ -161,7 +161,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -186,7 +186,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_batch"
+                        android:src="@drawable/ic_auto"
                         android:contentDescription="Lote de PDFs" />
 
                     <LinearLayout
@@ -216,7 +216,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -241,7 +241,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_invoice"
+                        android:src="@drawable/ic_auto"
                         android:contentDescription="Facturas" />
 
                     <LinearLayout
@@ -271,7 +271,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -296,7 +296,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_statement"
+                        android:src="@drawable/ic_auto"
                         android:contentDescription="Estados de Cuenta" />
 
                     <LinearLayout
@@ -326,7 +326,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>

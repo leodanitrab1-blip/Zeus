@@ -77,7 +77,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_merge"
+                        android:src="@drawable/ic_pdf"
                         android:contentDescription="Unir PDFs" />
 
                     <LinearLayout
@@ -107,7 +107,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -132,7 +132,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_split"
+                        android:src="@drawable/ic_pdf"
                         android:contentDescription="Dividir PDF" />
 
                     <LinearLayout
@@ -162,7 +162,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -187,7 +187,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_sign"
+                        android:src="@drawable/ic_pdf"
                         android:contentDescription="Firmar PDF" />
 
                     <LinearLayout
@@ -217,7 +217,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -242,7 +242,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_compress"
+                        android:src="@drawable/ic_pdf"
                         android:contentDescription="Comprimir PDF" />
 
                     <LinearLayout
@@ -272,7 +272,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
@@ -297,7 +297,7 @@
                     <ImageView
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_convert"
+                        android:src="@drawable/ic_pdf"
                         android:contentDescription="Convertir PDF" />
 
                     <LinearLayout
@@ -327,7 +327,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_arrow_right"
+                        android:src="@drawable/ic_zeus_bolt"
                         android:contentDescription="Ir" />
 
                 </LinearLayout>
