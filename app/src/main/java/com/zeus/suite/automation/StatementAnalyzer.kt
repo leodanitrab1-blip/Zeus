@@ -31,8 +31,8 @@ class StatementAnalyzer(private val context: Context) {
         
         if (data == null || data.rows.isEmpty()) return null
 
-        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor"))
-        val typeIndex = findColumnIndex(data.headers, listOf("tipo", "type", "movimiento", "operacion"))
+        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor", "suma"))
+        val typeIndex = findColumnIndex(data.headers, listOf("tipo", "type", "movimiento", "operacion", "transaccion"))
         val categoryIndex = findColumnIndex(data.headers, listOf("categoria", "category", "concepto", "descripcion", "detalle"))
 
         if (amountIndex == -1) return null
@@ -46,9 +46,11 @@ class StatementAnalyzer(private val context: Context) {
 
         for (row in data.rows) {
             if (amountIndex < row.size) {
-                val amount = row[amountIndex]
+                val amountStr = row[amountIndex]
                     .replace("$", "").replace(",", "").replace("\"", "").trim()
-                    .toDoubleOrNull()?.let { Math.abs(it) } ?: 0.0
+                val amount = amountStr.toDoubleOrNull()?.let { Math.abs(it) } ?: 0.0
+                
+                if (amount == 0.0 && amountStr.isNotBlank()) continue
 
                 amounts.add(amount)
 
@@ -56,9 +58,10 @@ class StatementAnalyzer(private val context: Context) {
                     val type = row[typeIndex].lowercase()
                     type.contains("credito") || type.contains("credit") || 
                     type.contains("abono") || type.contains("ingreso") ||
-                    type.contains("deposito")
+                    type.contains("deposito") || type.contains("entrada") ||
+                    type.contains("+")
                 } else {
-                    amount > 0
+                    amountStr.startsWith("+") || !amountStr.startsWith("-")
                 }
 
                 if (isCredit) {
@@ -70,7 +73,7 @@ class StatementAnalyzer(private val context: Context) {
                 }
 
                 if (categoryIndex != -1 && categoryIndex < row.size) {
-                    val category = row[categoryIndex].trim()
+                    val category = row[categoryIndex].trim().ifBlank { "Sin categoria" }
                     categoryTotals[category] = (categoryTotals[category] ?: 0.0) + amount
                 }
             }
