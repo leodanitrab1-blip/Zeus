@@ -8,7 +8,6 @@ import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -41,12 +40,7 @@ class PDFModuleFragment : Fragment() {
         if (uris.isNotEmpty()) {
             selectedFiles.clear()
             selectedFiles.addAll(uris)
-            
-            if (uris.size == 1) {
-                showSplitOptions(uris[0])
-            } else {
-                showMergeConfirmation(uris)
-            }
+            showMergeConfirmation(uris)
         }
     }
 
@@ -242,7 +236,6 @@ class PDFModuleFragment : Fragment() {
 
     private fun parsePageNumbers(input: String, totalPages: Int): List<Int> {
         val pages = mutableSetOf<Int>()
-        
         val parts = input.split(",")
         
         for (part in parts) {
