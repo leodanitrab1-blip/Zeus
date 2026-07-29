@@ -3,6 +3,8 @@ package com.zeus.suite.ui.fragments
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -12,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TableLayout
@@ -23,6 +26,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
 import com.zeus.suite.bigdata.CSVHandler
+import com.zeus.suite.bigdata.ChartGenerator
 import com.zeus.suite.bigdata.DataFilter
 import com.zeus.suite.bigdata.ExcelHandler
 import java.text.NumberFormat
@@ -93,7 +97,8 @@ class BigDataFragment : Fragment() {
             else showToast("Abra un archivo primero")
         }
         view.findViewById<View>(R.id.cardChart)?.setOnClickListener {
-            showToast("Graficar - Proximamente")
+            if (headers.isNotEmpty()) showChartOptions()
+            else showToast("Abra un archivo primero")
         }
         view.findViewById<View>(R.id.cardStats)?.setOnClickListener {
             if (headers.isNotEmpty()) showStats()
@@ -270,71 +275,67 @@ class BigDataFragment : Fragment() {
         val columns = headers.toTypedArray()
         AlertDialog.Builder(requireContext())
             .setTitle("Filtrar por columna")
-            .setItems(columns) { _, which -> showOperatorDialog(which, columns[which]) }
+            .setItems(columns) { _, which -> showOperatorDialog(which) }
             .setNegativeButton("Cancelar", null).show()
     }
 
-    private fun showOperatorDialog(colIndex: Int, colName: String) {
+    private fun showOperatorDialog(colIndex: Int) {
         val operators = DataFilter.FilterOperator.values()
-        val operatorNames = operators.map { it.label }.toTypedArray()
+        val labels = operators.map { it.label }.toTypedArray()
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Operador para: $colName")
-            .setItems(operatorNames) { _, which ->
-                val operator = operators[which]
-                if (operator == DataFilter.FilterOperator.IS_EMPTY ||
-                    operator == DataFilter.FilterOperator.IS_NOT_EMPTY) {
-                    applyFilter(colIndex, colName, operator, "")
+            .setTitle("Operador para: ${headers[colIndex]}")
+            .setItems(labels) { _, which ->
+                val op = operators[which]
+                if (op == DataFilter.FilterOperator.IS_EMPTY || op == DataFilter.FilterOperator.IS_NOT_EMPTY) {
+                    applyFilter(colIndex, op, "")
                 } else {
-                    showValueInput(colIndex, colName, operator)
+                    showValueInput(colIndex, op)
                 }
             }
             .setNegativeButton("Cancelar", null).show()
     }
 
-    private fun showValueInput(colIndex: Int, colName: String, operator: DataFilter.FilterOperator) {
+    private fun showValueInput(colIndex: Int, operator: DataFilter.FilterOperator) {
         val data = getBatchData() ?: return
         val uniqueValues = DataFilter().getUniqueValues(data, colIndex).take(30)
 
         if (uniqueValues.isNotEmpty() && uniqueValues.size <= 30) {
-            val items = uniqueValues.toTypedArray()
             AlertDialog.Builder(requireContext())
-                .setTitle("$colName ${operator.label}")
-                .setItems(items) { _, which ->
-                    applyFilter(colIndex, colName, operator, items[which])
+                .setTitle("${headers[colIndex]} ${operator.label}")
+                .setItems(uniqueValues.toTypedArray()) { _, which ->
+                    applyFilter(colIndex, operator, uniqueValues[which])
                 }
                 .setNeutralButton("Escribir valor") { _, _ ->
-                    showManualInput(colIndex, colName, operator)
+                    showManualInput(colIndex, operator)
                 }
                 .setNegativeButton("Cancelar", null).show()
         } else {
-            showManualInput(colIndex, colName, operator)
+            showManualInput(colIndex, operator)
         }
     }
 
-    private fun showManualInput(colIndex: Int, colName: String, operator: DataFilter.FilterOperator) {
+    private fun showManualInput(colIndex: Int, operator: DataFilter.FilterOperator) {
         val input = EditText(requireContext()).apply {
             hint = "Ingrese valor..."
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
-
         AlertDialog.Builder(requireContext())
-            .setTitle("$colName ${operator.label}")
+            .setTitle("${headers[colIndex]} ${operator.label}")
             .setView(input)
             .setPositiveButton("Filtrar") { _, _ ->
-                applyFilter(colIndex, colName, operator, input.text.toString())
+                applyFilter(colIndex, operator, input.text.toString())
             }
             .setNegativeButton("Cancelar", null).show()
     }
 
-    private fun applyFilter(colIndex: Int, colName: String, operator: DataFilter.FilterOperator, value: String) {
+    private fun applyFilter(colIndex: Int, operator: DataFilter.FilterOperator, value: String) {
         val data = getBatchData() ?: return
         val dataFilter = DataFilter()
-        val condition = DataFilter.FilterCondition(colIndex, colName, operator, value)
+        val condition = DataFilter.FilterCondition(colIndex, operator, value)
         val result = dataFilter.filter(data, listOf(condition))
-
         if (result.rows.isNotEmpty()) {
-            showDataTable("Filtro: $colName ${operator.label} $value", result)
+            showDataTable("Filtro: ${headers[colIndex]} ${operator.label} $value", result)
         } else {
             showToast("Sin resultados para el filtro")
         }
@@ -357,6 +358,112 @@ class BigDataFragment : Fragment() {
                 }
             }
             .setNegativeButton("Cancelar", null).show()
+    }
+
+    private fun showChartOptions() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Seleccione tipo de grafico")
+            .setItems(arrayOf("Grafico de Barras", "Grafico Circular")) { _, which ->
+                when (which) {
+                    0 -> showColumnSelector("barras")
+                    1 -> showColumnSelector("circular")
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showColumnSelector(chartType: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Seleccione columna para graficar")
+            .setItems(headers.toTypedArray()) { _, which ->
+                prepareChart(chartType, which, headers[which])
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun prepareChart(chartType: String, colIndex: Int, colName: String) {
+        val data = getBatchData() ?: return
+        val chartGenerator = ChartGenerator(requireContext())
+
+        val frequency = mutableMapOf<String, Float>()
+        for (row in data.rows) {
+            if (colIndex < row.size) {
+                val key = row[colIndex].ifBlank { "(vacio)" }
+                frequency[key] = (frequency[key] ?: 0f) + 1f
+            }
+        }
+
+        val sortedFreq = frequency.toList().sortedByDescending { it.second }.take(10)
+        val labels = sortedFreq.map { it.first }
+        val values = sortedFreq.map { it.second }
+
+        if (labels.isEmpty()) {
+            showToast("No hay datos para graficar")
+            return
+        }
+
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Generando grafico...")
+            .setMessage("Procesando datos...")
+            .setCancelable(false)
+            .create()
+        pd.show()
+
+        Thread {
+            val bitmap = when (chartType) {
+                "barras" -> chartGenerator.generateBarChart(labels, values, colName)
+                else -> chartGenerator.generatePieChart(labels, values, colName)
+            }
+
+            val file = chartGenerator.saveChart(bitmap, "grafico_${System.currentTimeMillis()}")
+
+            requireActivity().runOnUiThread {
+                pd.dismiss()
+                if (file != null) {
+                    showChartDialog(bitmap, file, colName)
+                } else {
+                    showToast("Error al generar grafico")
+                }
+            }
+        }.start()
+    }
+
+    private fun showChartDialog(bitmap: Bitmap, file: java.io.File, title: String) {
+        val imageView = ImageView(requireContext()).apply {
+            setImageBitmap(bitmap)
+            adjustViewBounds = true
+            maxHeight = 1200
+        }
+
+        val scrollView = ScrollView(requireContext())
+        scrollView.addView(imageView)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Grafico: $title")
+            .setView(scrollView)
+            .setPositiveButton("Compartir") { _, _ -> shareImage(file) }
+            .setNegativeButton("Cerrar", null)
+            .show()
+    }
+
+    private fun shareImage(file: java.io.File) {
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.provider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Compartir grafico"))
+        } catch (e: Exception) {
+            showToast("Error al compartir")
+        }
     }
 
     private fun showStats() {
