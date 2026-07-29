@@ -23,6 +23,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
 import com.zeus.suite.bigdata.CSVHandler
+import com.zeus.suite.bigdata.DataFilter
 import com.zeus.suite.bigdata.ExcelHandler
 import java.text.NumberFormat
 import java.util.Locale
@@ -72,10 +73,16 @@ class BigDataFragment : Fragment() {
 
     private fun setupClickListeners(view: View) {
         view.findViewById<View>(R.id.cardCSV)?.setOnClickListener {
-            pendingAction = "csv"; openFilePicker("text/csv")
+            pendingAction = "csv"
+            openFilePicker(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
         }
         view.findViewById<View>(R.id.cardExcel)?.setOnClickListener {
-            pendingAction = "excel"; openFilePicker("application/vnd.ms-excel")
+            pendingAction = "excel"
+            openFilePicker(arrayOf(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.ms-excel",
+                "*/*"
+            ))
         }
         view.findViewById<View>(R.id.cardFilter)?.setOnClickListener {
             if (headers.isNotEmpty()) showFilterDialog()
@@ -94,12 +101,9 @@ class BigDataFragment : Fragment() {
         }
     }
 
-    private fun openFilePicker(mimeType: String) {
-        try {
-            filePickerLauncher.launch(arrayOf(mimeType, "*/*"))
-        } catch (e: Exception) {
-            showToast("Error al abrir selector")
-        }
+    private fun openFilePicker(mimeTypes: Array<String>) {
+        try { filePickerLauncher.launch(mimeTypes) }
+        catch (e: Exception) { showToast("Error al abrir selector") }
     }
 
     private fun loadCSV(uri: Uri) {
@@ -127,9 +131,7 @@ class BigDataFragment : Fragment() {
             val data = excelHandler.readExcelBatch(uri, currentOffset, BATCH_SIZE)
             requireActivity().runOnUiThread {
                 pd.dismiss(); isLoading = false
-                handleDataResult(data?.let {
-                    CSVHandler.CSVData(it.headers, it.rows)
-                })
+                handleDataResult(data?.let { CSVHandler.CSVData(it.headers, it.rows) })
             }
         }.start()
     }
@@ -158,14 +160,14 @@ class BigDataFragment : Fragment() {
     private fun showDataTable(fileName: String, data: CSVHandler.CSVData) {
         val formatter = NumberFormat.getNumberInstance(Locale.getDefault())
         val endRow = currentOffset + data.rows.size
+        val typeLabel = if (isExcel) "EXCEL" else "CSV"
 
         val mainLayout = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(12, 12, 12, 12)
+            orientation = LinearLayout.VERTICAL; setPadding(12, 12, 12, 12)
         }
 
         val infoText = TextView(requireContext()).apply {
-            text = "$fileName\n${data.headers.size} columnas | Filas ${formatter.format(currentOffset + 1)} - ${formatter.format(endRow)}"
+            text = "[$typeLabel] $fileName\n${data.headers.size} columnas | Filas ${formatter.format(currentOffset + 1)} - ${formatter.format(endRow)}"
             textSize = 13f; setTextColor(0xFF1565C0.toInt())
             setTypeface(null, android.graphics.Typeface.BOLD); setPadding(0, 0, 0, 8)
         }
@@ -177,15 +179,13 @@ class BigDataFragment : Fragment() {
 
         if (currentOffset > 0) {
             navLayout.addView(createNavButton("<< Anterior") {
-                currentOffset = maxOf(0, currentOffset - BATCH_SIZE)
-                if (isExcel) loadExcel(currentUri!!) else loadCSV(currentUri!!)
+                currentOffset = maxOf(0, currentOffset - BATCH_SIZE); reloadData()
             })
         }
 
         if (hasMoreData) {
             navLayout.addView(createNavButton("Siguiente >>") {
-                currentOffset += BATCH_SIZE
-                if (isExcel) loadExcel(currentUri!!) else loadCSV(currentUri!!)
+                currentOffset += BATCH_SIZE; reloadData()
             })
         }
 
@@ -221,10 +221,14 @@ class BigDataFragment : Fragment() {
         mainLayout.addView(horizontalScroll)
 
         AlertDialog.Builder(requireContext())
-            .setTitle(if (isExcel) "Datos Excel" else "Datos CSV")
+            .setTitle("Datos")
             .setView(mainLayout)
             .setPositiveButton("Cerrar", null)
             .show()
+    }
+
+    private fun reloadData() {
+        currentUri?.let { if (isExcel) loadExcel(it) else loadCSV(it) }
     }
 
     private fun createNavButton(text: String, onClick: () -> Unit): Button {
@@ -252,35 +256,88 @@ class BigDataFragment : Fragment() {
         clipboard.setPrimaryClip(ClipData.newPlainText("Data", text))
     }
 
-    private fun showFilterDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Filtrar por columna")
-            .setItems(headers.toTypedArray()) { _, which -> showFilterValueDialog(which, headers[which]) }
-            .setNegativeButton("Cancelar", null).show()
-    }
-
-    private fun showFilterValueDialog(colIndex: Int, colName: String) {
-        val data = if (isExcel) {
+    private fun getBatchData(): CSVHandler.CSVData? {
+        return if (isExcel) {
             excelHandler.readExcelBatch(currentUri!!, 0, BATCH_SIZE)?.let {
                 CSVHandler.CSVData(it.headers, it.rows)
             }
         } else {
             csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE)
-        } ?: return
-
-        val values = mutableSetOf<String>()
-        for (row in data.rows) {
-            if (colIndex < row.size) values.add(row[colIndex])
         }
-        val uniqueValues = values.take(50).toTypedArray()
+    }
+
+    private fun showFilterDialog() {
+        val columns = headers.toTypedArray()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Filtrar por columna")
+            .setItems(columns) { _, which -> showOperatorDialog(which, columns[which]) }
+            .setNegativeButton("Cancelar", null).show()
+    }
+
+    private fun showOperatorDialog(colIndex: Int, colName: String) {
+        val operators = DataFilter.FilterOperator.values()
+        val operatorNames = operators.map { it.label }.toTypedArray()
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Filtrar: $colName")
-            .setItems(uniqueValues) { _, which ->
-                val filtered = data.rows.filter { colIndex < it.size && it[colIndex] == uniqueValues[which] }
-                showDataTable("Filtrado por $colName", CSVHandler.CSVData(data.headers, filtered))
+            .setTitle("Operador para: $colName")
+            .setItems(operatorNames) { _, which ->
+                val operator = operators[which]
+                if (operator == DataFilter.FilterOperator.IS_EMPTY ||
+                    operator == DataFilter.FilterOperator.IS_NOT_EMPTY) {
+                    applyFilter(colIndex, colName, operator, "")
+                } else {
+                    showValueInput(colIndex, colName, operator)
+                }
             }
             .setNegativeButton("Cancelar", null).show()
+    }
+
+    private fun showValueInput(colIndex: Int, colName: String, operator: DataFilter.FilterOperator) {
+        val data = getBatchData() ?: return
+        val uniqueValues = DataFilter().getUniqueValues(data, colIndex).take(30)
+
+        if (uniqueValues.isNotEmpty() && uniqueValues.size <= 30) {
+            val items = uniqueValues.toTypedArray()
+            AlertDialog.Builder(requireContext())
+                .setTitle("$colName ${operator.label}")
+                .setItems(items) { _, which ->
+                    applyFilter(colIndex, colName, operator, items[which])
+                }
+                .setNeutralButton("Escribir valor") { _, _ ->
+                    showManualInput(colIndex, colName, operator)
+                }
+                .setNegativeButton("Cancelar", null).show()
+        } else {
+            showManualInput(colIndex, colName, operator)
+        }
+    }
+
+    private fun showManualInput(colIndex: Int, colName: String, operator: DataFilter.FilterOperator) {
+        val input = EditText(requireContext()).apply {
+            hint = "Ingrese valor..."
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("$colName ${operator.label}")
+            .setView(input)
+            .setPositiveButton("Filtrar") { _, _ ->
+                applyFilter(colIndex, colName, operator, input.text.toString())
+            }
+            .setNegativeButton("Cancelar", null).show()
+    }
+
+    private fun applyFilter(colIndex: Int, colName: String, operator: DataFilter.FilterOperator, value: String) {
+        val data = getBatchData() ?: return
+        val dataFilter = DataFilter()
+        val condition = DataFilter.FilterCondition(colIndex, colName, operator, value)
+        val result = dataFilter.filter(data, listOf(condition))
+
+        if (result.rows.isNotEmpty()) {
+            showDataTable("Filtro: $colName ${operator.label} $value", result)
+        } else {
+            showToast("Sin resultados para el filtro")
+        }
     }
 
     private fun showSearchDialog() {
@@ -292,30 +349,18 @@ class BigDataFragment : Fragment() {
             .setPositiveButton("Buscar") { _, _ ->
                 val q = input.text.toString().lowercase()
                 if (q.isNotBlank()) {
-                    val data = if (isExcel) {
-                        excelHandler.readExcelBatch(currentUri!!, 0, BATCH_SIZE)?.let {
-                            CSVHandler.CSVData(it.headers, it.rows)
-                        }
-                    } else {
-                        csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE)
-                    } ?: return@setPositiveButton
+                    val data = getBatchData() ?: return@setPositiveButton
                     val results = data.rows.filter { row -> row.any { it.lowercase().contains(q) } }
-                    if (results.isNotEmpty()) showDataTable("Busqueda: $q", CSVHandler.CSVData(data.headers, results))
-                    else showToast("Sin resultados")
+                    if (results.isNotEmpty()) {
+                        showDataTable("Busqueda: $q", CSVHandler.CSVData(data.headers, results))
+                    } else showToast("Sin resultados")
                 }
             }
             .setNegativeButton("Cancelar", null).show()
     }
 
     private fun showStats() {
-        val data = if (isExcel) {
-            excelHandler.readExcelBatch(currentUri!!, 0, BATCH_SIZE)?.let {
-                CSVHandler.CSVData(it.headers, it.rows)
-            }
-        } else {
-            csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE)
-        } ?: return
-
+        val data = getBatchData() ?: return
         val sb = StringBuilder()
         sb.appendLine("=== ESTADISTICAS (muestra de ${data.rows.size} filas) ===")
         sb.appendLine("Columnas: ${data.headers.size}")
