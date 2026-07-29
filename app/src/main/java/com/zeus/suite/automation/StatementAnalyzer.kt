@@ -25,16 +25,19 @@ class StatementAnalyzer(private val context: Context) {
     )
 
     fun analyzeStatements(uri: Uri): StatementSummary? {
-        val csvData = csvHandler.readCSV(uri, ",", 1000)
-        val data = if (csvData != null && csvData.rows.isNotEmpty()) csvData
-        else excelHandler.readExcel(uri, 1000)?.let { CSVHandler.CSVData(it.headers, it.rows) }
+        val csvData = csvHandler.readCSV(uri, ",", 2000)
+        val data: CSVHandler.CSVData? = if (csvData != null && csvData.rows.isNotEmpty()) {
+            csvData
+        } else {
+            excelHandler.readExcel(uri, 2000)?.let { CSVHandler.CSVData(it.headers, it.rows) }
+        }
         
         if (data == null || data.rows.isEmpty()) return null
 
-        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor", "suma"))
-        val typeIndex = findColumnIndex(data.headers, listOf("tipo", "type", "movimiento", "operacion", "transaccion"))
-        val categoryIndex = findColumnIndex(data.headers, listOf("categoria", "category", "concepto", "descripcion", "detalle"))
-
+        val amountIndex = findColumnIndex(data.headers, listOf(
+            "monto", "total", "importe", "amount", "valor", "suma", "saldo"
+        ))
+        
         if (amountIndex == -1) return null
 
         var totalCredits = 0.0
@@ -44,38 +47,46 @@ class StatementAnalyzer(private val context: Context) {
         val amounts = mutableListOf<Double>()
         val categoryTotals = mutableMapOf<String, Double>()
 
+        val typeIndex = findColumnIndex(data.headers, listOf(
+            "tipo", "type", "movimiento", "operacion", "transaccion", "concepto"
+        ))
+        val categoryIndex = findColumnIndex(data.headers, listOf(
+            "categoria", "category", "descripcion", "detalle", "referencia"
+        ))
+
         for (row in data.rows) {
-            if (amountIndex < row.size) {
-                val amountStr = row[amountIndex]
-                    .replace("$", "").replace(",", "").replace("\"", "").trim()
-                val amount = amountStr.toDoubleOrNull()?.let { Math.abs(it) } ?: 0.0
-                
-                if (amount == 0.0 && amountStr.isNotBlank()) continue
+            if (amountIndex >= row.size) continue
+            
+            val amountStr = row[amountIndex]
+                .replace("\"", "").replace("'", "").trim()
+            
+            val amount = parseAmount(amountStr)
+            if (amount == null) continue
 
-                amounts.add(amount)
+            val absAmount = Math.abs(amount)
+            amounts.add(absAmount)
 
-                val isCredit = if (typeIndex != -1 && typeIndex < row.size) {
-                    val type = row[typeIndex].lowercase()
-                    type.contains("credito") || type.contains("credit") || 
-                    type.contains("abono") || type.contains("ingreso") ||
-                    type.contains("deposito") || type.contains("entrada") ||
-                    type.contains("+")
-                } else {
-                    amountStr.startsWith("+") || !amountStr.startsWith("-")
-                }
+            val isCredit = if (typeIndex != -1 && typeIndex < row.size) {
+                val type = row[typeIndex].lowercase()
+                type.contains("credito") || type.contains("credit") ||
+                type.contains("abono") || type.contains("ingreso") ||
+                type.contains("deposito") || type.contains("entrada") ||
+                type.contains("pago recibido") || type.contains("transferencia recibida")
+            } else {
+                amount > 0
+            }
 
-                if (isCredit) {
-                    totalCredits += amount
-                    if (amount > largestCredit) largestCredit = amount
-                } else {
-                    totalDebits += amount
-                    if (amount > largestDebit) largestDebit = amount
-                }
+            if (isCredit) {
+                totalCredits += absAmount
+                if (absAmount > largestCredit) largestCredit = absAmount
+            } else {
+                totalDebits += absAmount
+                if (absAmount > largestDebit) largestDebit = absAmount
+            }
 
-                if (categoryIndex != -1 && categoryIndex < row.size) {
-                    val category = row[categoryIndex].trim().ifBlank { "Sin categoria" }
-                    categoryTotals[category] = (categoryTotals[category] ?: 0.0) + amount
-                }
+            if (categoryIndex != -1 && categoryIndex < row.size) {
+                val category = row[categoryIndex].trim().ifBlank { "Sin categoria" }
+                categoryTotals[category] = (categoryTotals[category] ?: 0.0) + absAmount
             }
         }
 
@@ -91,6 +102,24 @@ class StatementAnalyzer(private val context: Context) {
             largestDebit = largestDebit,
             categoryTotals = categoryTotals
         )
+    }
+
+    private fun parseAmount(str: String): Double? {
+        var cleaned = str
+            .replace("$", "")
+            .replace("USD", "")
+            .replace("MXN", "")
+            .replace("EUR", "")
+            .replace(" ", "")
+            .trim()
+        
+        val isNegative = cleaned.startsWith("-") || cleaned.startsWith("(")
+        cleaned = cleaned.replace("-", "").replace("(", "").replace(")", "").replace(",", "")
+        
+        val value = cleaned.toDoubleOrNull()
+        return if (value != null) {
+            if (isNegative) -value else value
+        } else null
     }
 
     fun generateAnalysisReport(uri: Uri): File? {

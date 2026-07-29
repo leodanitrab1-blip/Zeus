@@ -12,13 +12,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
-import com.zeus.suite.automation.BatchPDFCreator
 import com.zeus.suite.automation.CSVToReport
 import com.zeus.suite.automation.ExcelToPDF
 import com.zeus.suite.automation.InvoiceAnalyzer
 import com.zeus.suite.automation.StatementAnalyzer
-import com.zeus.suite.bigdata.CSVHandler
-import com.zeus.suite.bigdata.ExcelHandler
 import com.zeus.suite.pdf.PDFMerger
 import com.zeus.suite.utils.FileManager
 import java.text.NumberFormat
@@ -31,11 +28,8 @@ class AutoFragment : Fragment() {
     }
 
     private lateinit var fileManager: FileManager
-    private lateinit var csvHandler: CSVHandler
-    private lateinit var excelHandler: ExcelHandler
     private lateinit var excelToPDF: ExcelToPDF
     private lateinit var csvToReport: CSVToReport
-    private lateinit var batchPDFCreator: BatchPDFCreator
     private lateinit var invoiceAnalyzer: InvoiceAnalyzer
     private lateinit var statementAnalyzer: StatementAnalyzer
     private lateinit var pdfMerger: PDFMerger
@@ -69,11 +63,8 @@ class AutoFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         fileManager = FileManager(requireContext())
-        csvHandler = CSVHandler(requireContext())
-        excelHandler = ExcelHandler(requireContext())
         excelToPDF = ExcelToPDF(requireContext())
         csvToReport = CSVToReport(requireContext())
-        batchPDFCreator = BatchPDFCreator(requireContext())
         invoiceAnalyzer = InvoiceAnalyzer(requireContext())
         statementAnalyzer = StatementAnalyzer(requireContext())
         pdfMerger = PDFMerger(requireContext())
@@ -97,7 +88,7 @@ class AutoFragment : Fragment() {
         }
         view.findViewById<View>(R.id.cardStatement)?.setOnClickListener {
             pendingAction = "statement"
-            openSingleFilePicker(arrayOf("text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/pdf", "*/*"))
+            openSingleFilePicker(arrayOf("text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "*/*"))
         }
     }
 
@@ -106,7 +97,6 @@ class AutoFragment : Fragment() {
         catch (e: Exception) { toast("Error al abrir selector") }
     }
 
-    // EXCEL A PDF
     private fun convertExcelToPdf(uri: Uri) {
         val pd = progressDialog("Convirtiendo Excel a PDF..."); pd.show()
         Thread {
@@ -119,7 +109,6 @@ class AutoFragment : Fragment() {
         }.start()
     }
 
-    // CSV A REPORTE
     private fun convertCsvToReport(uri: Uri) {
         AlertDialog.Builder(requireContext())
             .setTitle("CSV a Reporte")
@@ -153,7 +142,6 @@ class AutoFragment : Fragment() {
         }.start()
     }
 
-    // LOTE DE PDFs
     private fun createBatchPDFs(uris: List<Uri>) {
         if (uris.size < 2) { toast("Seleccione al menos 2 PDFs"); return }
 
@@ -188,14 +176,12 @@ class AutoFragment : Fragment() {
             }
             requireActivity().runOnUiThread {
                 pd.dismiss()
-                if (results.isNotEmpty()) {
-                    toast("${results.size} archivos procesados en Download/ZeusSuite/")
-                } else toast("Error al procesar")
+                if (results.isNotEmpty()) toast("${results.size} archivos en Download/ZeusSuite/")
+                else toast("Error al procesar")
             }
         }.start()
     }
 
-    // FACTURAS
     private fun analyzeInvoices(uri: Uri) {
         val pd = progressDialog("Analizando facturas..."); pd.show()
         Thread {
@@ -221,19 +207,15 @@ class AutoFragment : Fragment() {
                         }
                         showTextResult("Analisis de Facturas", sb.toString())
                     } else {
-                        toast("No se encontraron facturas. Verifique que el archivo tenga columnas de montos.")
+                        toast("No se encontraron facturas. Use CSV o Excel con columna de montos.")
                     }
                 }
             } catch (e: Exception) {
-                requireActivity().runOnUiThread {
-                    pd.dismiss()
-                    toast("Error: ${e.message}")
-                }
+                requireActivity().runOnUiThread { pd.dismiss(); toast("Error: ${e.message}") }
             }
         }.start()
     }
 
-    // ESTADOS DE CUENTA
     private fun analyzeStatements(uri: Uri) {
         val pd = progressDialog("Analizando estados de cuenta..."); pd.show()
         Thread {
@@ -261,14 +243,11 @@ class AutoFragment : Fragment() {
                         }
                         showTextResult("Analisis de Estados de Cuenta", sb.toString())
                     } else {
-                        toast("No se encontraron transacciones. Verifique el formato del archivo.")
+                        toast("No se encontraron transacciones. Use CSV o Excel con columna de montos.")
                     }
                 }
             } catch (e: Exception) {
-                requireActivity().runOnUiThread {
-                    pd.dismiss()
-                    toast("Error: ${e.message}")
-                }
+                requireActivity().runOnUiThread { pd.dismiss(); toast("Error: ${e.message}") }
             }
         }.start()
     }
@@ -298,7 +277,7 @@ class AutoFragment : Fragment() {
             .setPositiveButton("Copiar") { _, _ ->
                 val cb = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cb.setPrimaryClip(android.content.ClipData.newPlainText("Reporte", message))
-                toast("Copiado al portapapeles")
+                toast("Copiado")
             }
             .setNeutralButton("Compartir") { _, _ ->
                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
@@ -310,14 +289,11 @@ class AutoFragment : Fragment() {
 
     private fun openFile(file: java.io.File) {
         try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                requireContext(), "${requireContext().packageName}.provider", file
-            )
+            val uri = androidx.core.content.FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.provider", file)
             startActivity(Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/pdf")
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+                setDataAndType(uri, "application/pdf"); flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             })
-        } catch (e: Exception) { toast("No hay aplicacion para abrir PDF") }
+        } catch (e: Exception) { toast("No hay app para abrir PDF") }
     }
 
     private fun getFileName(uri: Uri): String {
