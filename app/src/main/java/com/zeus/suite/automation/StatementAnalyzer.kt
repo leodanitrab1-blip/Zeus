@@ -3,6 +3,7 @@ package com.zeus.suite.automation
 import android.content.Context
 import android.net.Uri
 import com.zeus.suite.bigdata.CSVHandler
+import com.zeus.suite.bigdata.ExcelHandler
 import com.zeus.suite.utils.FileManager
 import java.io.File
 
@@ -10,6 +11,7 @@ class StatementAnalyzer(private val context: Context) {
 
     private val fileManager = FileManager(context)
     private val csvHandler = CSVHandler(context)
+    private val excelHandler = ExcelHandler(context)
 
     data class StatementSummary(
         val totalTransactions: Int,
@@ -23,34 +25,17 @@ class StatementAnalyzer(private val context: Context) {
     )
 
     fun analyzeStatements(uri: Uri): StatementSummary? {
-        val data = csvHandler.readCSV(uri) ?: return null
+        val csvData = csvHandler.readCSV(uri, ",", 1000)
+        val data = if (csvData != null && csvData.rows.isNotEmpty()) csvData
+        else excelHandler.readExcel(uri, 1000)?.let { CSVHandler.CSVData(it.headers, it.rows) }
+        
+        if (data == null || data.rows.isEmpty()) return null
 
-        val amountColumn = data.headers.find {
-            it.contains("monto", ignoreCase = true) ||
-            it.contains("importe", ignoreCase = true) ||
-            it.contains("amount", ignoreCase = true) ||
-            it.contains("valor", ignoreCase = true)
-        }
+        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor"))
+        val typeIndex = findColumnIndex(data.headers, listOf("tipo", "type", "movimiento", "operacion"))
+        val categoryIndex = findColumnIndex(data.headers, listOf("categoria", "category", "concepto", "descripcion", "detalle"))
 
-        val typeColumn = data.headers.find {
-            it.contains("tipo", ignoreCase = true) ||
-            it.contains("type", ignoreCase = true) ||
-            it.contains("debito", ignoreCase = true) ||
-            it.contains("credito", ignoreCase = true)
-        }
-
-        val categoryColumn = data.headers.find {
-            it.contains("categoria", ignoreCase = true) ||
-            it.contains("category", ignoreCase = true) ||
-            it.contains("concepto", ignoreCase = true) ||
-            it.contains("descripcion", ignoreCase = true)
-        }
-
-        if (amountColumn == null) return null
-
-        val amountIndex = data.headers.indexOf(amountColumn)
-        val typeIndex = if (typeColumn != null) data.headers.indexOf(typeColumn) else -1
-        val categoryIndex = if (categoryColumn != null) data.headers.indexOf(categoryColumn) else -1
+        if (amountIndex == -1) return null
 
         var totalCredits = 0.0
         var totalDebits = 0.0
@@ -61,14 +46,19 @@ class StatementAnalyzer(private val context: Context) {
 
         for (row in data.rows) {
             if (amountIndex < row.size) {
-                val amount = row[amountIndex].toDoubleOrNull()?.let { Math.abs(it) } ?: 0.0
+                val amount = row[amountIndex]
+                    .replace("$", "").replace(",", "").replace("\"", "").trim()
+                    .toDoubleOrNull()?.let { Math.abs(it) } ?: 0.0
+
                 amounts.add(amount)
 
                 val isCredit = if (typeIndex != -1 && typeIndex < row.size) {
                     val type = row[typeIndex].lowercase()
-                    type.contains("credito") || type.contains("credit") || type.contains("abono")
+                    type.contains("credito") || type.contains("credit") || 
+                    type.contains("abono") || type.contains("ingreso") ||
+                    type.contains("deposito")
                 } else {
-                    amount >= 0
+                    amount > 0
                 }
 
                 if (isCredit) {
@@ -80,21 +70,20 @@ class StatementAnalyzer(private val context: Context) {
                 }
 
                 if (categoryIndex != -1 && categoryIndex < row.size) {
-                    val category = row[categoryIndex]
+                    val category = row[categoryIndex].trim()
                     categoryTotals[category] = (categoryTotals[category] ?: 0.0) + amount
                 }
             }
         }
 
-        val netBalance = totalCredits - totalDebits
-        val averageTransaction = if (amounts.isNotEmpty()) amounts.sum() / amounts.size else 0.0
+        if (amounts.isEmpty()) return null
 
         return StatementSummary(
             totalTransactions = amounts.size,
             totalCredits = totalCredits,
             totalDebits = totalDebits,
-            netBalance = netBalance,
-            averageTransaction = averageTransaction,
+            netBalance = totalCredits - totalDebits,
+            averageTransaction = amounts.sum() / amounts.size,
             largestCredit = largestCredit,
             largestDebit = largestDebit,
             categoryTotals = categoryTotals
@@ -120,23 +109,26 @@ class StatementAnalyzer(private val context: Context) {
             sb.appendLine("Mayor credito: ${"%.2f".format(summary.largestCredit)}")
             sb.appendLine("Mayor debito: ${"%.2f".format(summary.largestDebit)}")
             sb.appendLine()
-            
             if (summary.categoryTotals.isNotEmpty()) {
                 sb.appendLine("--- Totales por Categoria ---")
-                val sortedCategories = summary.categoryTotals.toList()
-                    .sortedByDescending { it.second }
-                for ((category, total) in sortedCategories) {
-                    sb.appendLine("$category: ${"%.2f".format(total)}")
+                for ((cat, total) in summary.categoryTotals.toList().sortedByDescending { it.second }) {
+                    sb.appendLine("$cat: ${"%.2f".format(total)}")
                 }
             }
-
             reportFile.writeText(sb.toString())
             reportFile
-
         } catch (e: Exception) {
             e.printStackTrace()
             if (reportFile.exists()) reportFile.delete()
             null
         }
+    }
+
+    private fun findColumnIndex(headers: List<String>, keywords: List<String>): Int {
+        for (keyword in keywords) {
+            val index = headers.indexOfFirst { it.lowercase().contains(keyword.lowercase()) }
+            if (index != -1) return index
+        }
+        return -1
     }
 }

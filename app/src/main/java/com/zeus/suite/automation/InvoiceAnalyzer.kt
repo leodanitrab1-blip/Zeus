@@ -3,6 +3,7 @@ package com.zeus.suite.automation
 import android.content.Context
 import android.net.Uri
 import com.zeus.suite.bigdata.CSVHandler
+import com.zeus.suite.bigdata.ExcelHandler
 import com.zeus.suite.utils.FileManager
 import java.io.File
 
@@ -10,6 +11,7 @@ class InvoiceAnalyzer(private val context: Context) {
 
     private val fileManager = FileManager(context)
     private val csvHandler = CSVHandler(context)
+    private val excelHandler = ExcelHandler(context)
 
     data class InvoiceSummary(
         val totalInvoices: Int,
@@ -21,32 +23,19 @@ class InvoiceAnalyzer(private val context: Context) {
     )
 
     fun analyzeInvoices(uri: Uri): InvoiceSummary? {
-        val data = csvHandler.readCSV(uri) ?: return null
+        val csvData = csvHandler.readCSV(uri, ",", 1000)
+        val data = if (csvData != null && csvData.rows.isNotEmpty()) csvData
+        else excelHandler.readExcel(uri, 1000)?.let { CSVHandler.CSVData(it.headers, it.rows) }
+        
+        if (data == null || data.rows.isEmpty()) return null
 
-        val invoiceColumn = data.headers.find {
-            it.contains("factura", ignoreCase = true) ||
-            it.contains("invoice", ignoreCase = true) ||
-            it.contains("numero", ignoreCase = true)
+        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor", "suma"))
+        val dateIndex = findColumnIndex(data.headers, listOf("fecha", "date", "mes", "month", "periodo"))
+        val invoiceIndex = findColumnIndex(data.headers, listOf("factura", "invoice", "numero", "id", "codigo", "num"))
+
+        if (amountIndex == -1) {
+            amountIndex = 0
         }
-
-        val amountColumn = data.headers.find {
-            it.contains("monto", ignoreCase = true) ||
-            it.contains("total", ignoreCase = true) ||
-            it.contains("importe", ignoreCase = true) ||
-            it.contains("amount", ignoreCase = true)
-        }
-
-        val dateColumn = data.headers.find {
-            it.contains("fecha", ignoreCase = true) ||
-            it.contains("date", ignoreCase = true) ||
-            it.contains("mes", ignoreCase = true)
-        }
-
-        if (amountColumn == null) return null
-
-        val amountIndex = data.headers.indexOf(amountColumn)
-        val invoiceIndex = if (invoiceColumn != null) data.headers.indexOf(invoiceColumn) else -1
-        val dateIndex = if (dateColumn != null) data.headers.indexOf(dateColumn) else -1
 
         val amounts = mutableListOf<Double>()
         val invoiceAmounts = mutableListOf<Pair<String, Double>>()
@@ -54,19 +43,22 @@ class InvoiceAnalyzer(private val context: Context) {
 
         for (row in data.rows) {
             if (amountIndex < row.size) {
-                val amount = row[amountIndex].toDoubleOrNull() ?: 0.0
+                val amount = row[amountIndex]
+                    .replace("$", "").replace(",", "").replace("\"", "").trim()
+                    .toDoubleOrNull() ?: 0.0
+                
                 amounts.add(amount)
 
-                val invoiceNumber = if (invoiceIndex != -1 && invoiceIndex < row.size) {
-                    row[invoiceIndex]
+                val invoiceId = if (invoiceIndex != -1 && invoiceIndex < row.size) {
+                    row[invoiceIndex].trim()
                 } else {
                     "N/A"
                 }
-
-                invoiceAmounts.add(Pair(invoiceNumber, amount))
+                invoiceAmounts.add(Pair(invoiceId, amount))
 
                 if (dateIndex != -1 && dateIndex < row.size) {
-                    val month = row[dateIndex].take(7)
+                    val dateStr = row[dateIndex].trim()
+                    val month = if (dateStr.length >= 7) dateStr.take(7) else dateStr
                     monthlyTotals[month] = (monthlyTotals[month] ?: 0.0) + amount
                 }
             }
@@ -106,7 +98,6 @@ class InvoiceAnalyzer(private val context: Context) {
             sb.appendLine("Factura mas alta: ${summary.maxInvoice.first} - ${"%.2f".format(summary.maxInvoice.second)}")
             sb.appendLine("Factura mas baja: ${summary.minInvoice.first} - ${"%.2f".format(summary.minInvoice.second)}")
             sb.appendLine()
-            
             if (summary.monthlyTotals.isNotEmpty()) {
                 sb.appendLine("--- Totales por Mes ---")
                 val sortedMonths = summary.monthlyTotals.toList().sortedBy { it.first }
@@ -114,14 +105,20 @@ class InvoiceAnalyzer(private val context: Context) {
                     sb.appendLine("$month: ${"%.2f".format(total)}")
                 }
             }
-
             reportFile.writeText(sb.toString())
             reportFile
-
         } catch (e: Exception) {
             e.printStackTrace()
             if (reportFile.exists()) reportFile.delete()
             null
         }
+    }
+
+    private fun findColumnIndex(headers: List<String>, keywords: List<String>): Int {
+        for (keyword in keywords) {
+            val index = headers.indexOfFirst { it.lowercase().contains(keyword.lowercase()) }
+            if (index != -1) return index
+        }
+        return -1
     }
 }
