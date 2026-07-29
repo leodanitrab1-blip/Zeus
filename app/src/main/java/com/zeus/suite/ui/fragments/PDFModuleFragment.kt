@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
+import com.zeus.suite.pdf.PDFConverter
 import com.zeus.suite.pdf.PDFMerger
 import com.zeus.suite.pdf.PDFSigner
 import com.zeus.suite.pdf.PDFSplitter
@@ -24,22 +25,20 @@ import java.io.File
 class PDFModuleFragment : Fragment() {
 
     companion object {
-        fun newInstance(): PDFModuleFragment {
-            return PDFModuleFragment()
-        }
+        fun newInstance(): PDFModuleFragment = PDFModuleFragment()
     }
 
     private lateinit var fileManager: FileManager
     private lateinit var pdfMerger: PDFMerger
     private lateinit var pdfSplitter: PDFSplitter
     private lateinit var pdfSigner: PDFSigner
+    private lateinit var pdfConverter: PDFConverter
     private var pendingAction: String = ""
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isEmpty()) return@registerForActivityResult
-
         when (pendingAction) {
             "merge" -> {
                 if (uris.size >= 2) showMergeConfirmation(uris)
@@ -47,16 +46,13 @@ class PDFModuleFragment : Fragment() {
             }
             "split" -> showSplitOptions(uris[0])
             "sign" -> showSignDialog(uris[0])
+            "convert" -> showConvertOptions(uris)
         }
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_pdf, container, false)
-    }
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View? = inflater.inflate(R.layout.fragment_pdf, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -64,6 +60,7 @@ class PDFModuleFragment : Fragment() {
         pdfMerger = PDFMerger(requireContext())
         pdfSplitter = PDFSplitter(requireContext())
         pdfSigner = PDFSigner(requireContext())
+        pdfConverter = PDFConverter(requireContext())
         setupClickListeners(view)
     }
 
@@ -79,13 +76,95 @@ class PDFModuleFragment : Fragment() {
         }
         view.findViewById<View>(R.id.cardCompressPDF)?.visibility = View.GONE
         view.findViewById<View>(R.id.cardConvertPDF)?.setOnClickListener {
-            showToast("Convertir PDF - Proximamente")
+            showConvertTypeDialog()
         }
     }
 
     private fun openFilePicker() {
         try { filePickerLauncher.launch(arrayOf("application/pdf")) }
         catch (e: Exception) { showToast("Error al abrir selector de archivos") }
+    }
+
+    private fun showConvertTypeDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Convertir a PDF")
+            .setMessage("Seleccione el tipo de archivo a convertir:")
+            .setPositiveButton("Imagenes") { _, _ ->
+                pendingAction = "convert"
+                try {
+                    filePickerLauncher.launch(arrayOf("image/*"))
+                } catch (e: Exception) {
+                    showToast("Error al abrir selector")
+                }
+            }
+            .setNeutralButton("Texto") { _, _ ->
+                showTextInputDialog()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showTextInputDialog() {
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 24)
+        }
+        val input = EditText(requireContext()).apply {
+            hint = "Escriba el texto a convertir..."
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 8
+            gravity = android.view.Gravity.TOP
+        }
+        layout.addView(input)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Convertir texto a PDF")
+            .setView(layout)
+            .setPositiveButton("Convertir") { _, _ ->
+                val text = input.text.toString()
+                if (text.isNotBlank()) convertText(text)
+                else showToast("Ingrese texto")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showConvertOptions(uris: List<Uri>) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Convertir imagenes a PDF")
+            .setMessage("Se convertiran ${uris.size} imagenes a PDF")
+            .setPositiveButton("Convertir") { _, _ ->
+                convertImages(uris)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun convertImages(uris: List<Uri>) {
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Convirtiendo").setMessage("Imagenes a PDF...").setCancelable(false).create()
+        pd.show()
+        Thread {
+            val result = pdfConverter.imagesToPDF(uris, "convertido_${System.currentTimeMillis()}.pdf")
+            requireActivity().runOnUiThread {
+                pd.dismiss()
+                if (result != null) showSuccessDialog(result, "PDF creado exitosamente")
+                else showToast("Error al convertir")
+            }
+        }.start()
+    }
+
+    private fun convertText(text: String) {
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Convirtiendo").setMessage("Texto a PDF...").setCancelable(false).create()
+        pd.show()
+        Thread {
+            val result = pdfConverter.textToPDF(text, "texto_${System.currentTimeMillis()}.pdf")
+            requireActivity().runOnUiThread {
+                pd.dismiss()
+                if (result != null) showSuccessDialog(result, "PDF creado exitosamente")
+                else showToast("Error al convertir")
+            }
+        }.start()
     }
 
     private fun showSignDialog(uri: Uri) {
@@ -99,10 +178,8 @@ class PDFModuleFragment : Fragment() {
             text = "PDF: ${getFileName(uri)}"; textSize = 14f; setPadding(0, 0, 0, 16)
         })
         layout.addView(input)
-
         AlertDialog.Builder(requireContext())
-            .setTitle("Firmar PDF")
-            .setView(layout)
+            .setTitle("Firmar PDF").setView(layout)
             .setPositiveButton("Firmar") { _, _ ->
                 val sig = input.text.toString()
                 if (sig.isNotBlank()) signPDF(uri, sig) else showToast("Ingrese una firma")
@@ -158,15 +235,13 @@ class PDFModuleFragment : Fragment() {
             text = "Total de paginas: $totalPages"; textSize = 14f; setPadding(0,0,0,16)
         })
         layout.addView(fromInput); layout.addView(toInput)
-
         AlertDialog.Builder(requireContext())
             .setTitle("Extraer rango de paginas").setView(layout)
             .setPositiveButton("Extraer") { _, _ ->
                 val from = (fromInput.text.toString().toIntOrNull() ?: 1).coerceIn(1, totalPages)
                 val to = (toInput.text.toString().toIntOrNull() ?: totalPages).coerceIn(from, totalPages)
                 val pages = (from - 1 until to).toList()
-                if (pages.isNotEmpty()) splitSelectedPages(uri, pages)
-                else showToast("Rango invalido")
+                if (pages.isNotEmpty()) splitSelectedPages(uri, pages) else showToast("Rango invalido")
             }
             .setNegativeButton("Cancelar", null).show()
     }
