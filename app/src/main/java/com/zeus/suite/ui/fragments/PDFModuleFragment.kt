@@ -1,6 +1,5 @@
 package com.zeus.suite.ui.fragments
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -32,24 +31,23 @@ class PDFModuleFragment : Fragment() {
     private lateinit var fileManager: FileManager
     private lateinit var pdfMerger: PDFMerger
     private lateinit var pdfSplitter: PDFSplitter
-    private val selectedFiles = mutableListOf<Uri>()
+    private var pendingAction: String = ""
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            selectedFiles.clear()
-            selectedFiles.addAll(uris)
-            showMergeConfirmation(uris)
-        }
-    }
+        if (uris.isEmpty()) return@registerForActivityResult
 
-    private val singleFileLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                showSplitOptions(uri)
+        when (pendingAction) {
+            "merge" -> {
+                if (uris.size >= 2) {
+                    showMergeConfirmation(uris)
+                } else {
+                    showToast("Seleccione al menos 2 archivos para unir")
+                }
+            }
+            "split" -> {
+                showSplitOptions(uris[0])
             }
         }
     }
@@ -74,11 +72,13 @@ class PDFModuleFragment : Fragment() {
 
     private fun setupClickListeners(view: View) {
         view.findViewById<View>(R.id.cardMergePDF)?.setOnClickListener {
+            pendingAction = "merge"
             openFilePicker()
         }
 
         view.findViewById<View>(R.id.cardSplitPDF)?.setOnClickListener {
-            openSingleFilePicker()
+            pendingAction = "split"
+            openFilePicker()
         }
 
         view.findViewById<View>(R.id.cardSignPDF)?.setOnClickListener {
@@ -100,14 +100,6 @@ class PDFModuleFragment : Fragment() {
         } catch (e: Exception) {
             showToast("Error al abrir selector de archivos")
         }
-    }
-
-    private fun openSingleFilePicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/pdf"
-        }
-        singleFileLauncher.launch(intent)
     }
 
     private fun showSplitOptions(uri: Uri) {
@@ -332,9 +324,7 @@ class PDFModuleFragment : Fragment() {
             .setPositiveButton("Unir") { _, _ ->
                 mergePDFs(uris)
             }
-            .setNegativeButton("Cancelar") { _, _ ->
-                selectedFiles.clear()
-            }
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 
