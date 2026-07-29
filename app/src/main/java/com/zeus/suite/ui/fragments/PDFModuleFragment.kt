@@ -45,11 +45,8 @@ class PDFModuleFragment : Fragment() {
 
         when (pendingAction) {
             "merge" -> {
-                if (uris.size >= 2) {
-                    showMergeConfirmation(uris)
-                } else {
-                    showToast("Seleccione al menos 2 archivos para unir")
-                }
+                if (uris.size >= 2) showMergeConfirmation(uris)
+                else showToast("Seleccione al menos 2 archivos para unir")
             }
             "split" -> showSplitOptions(uris[0])
             "sign" -> showSignDialog(uris[0])
@@ -67,32 +64,26 @@ class PDFModuleFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         fileManager = FileManager(requireContext())
         pdfMerger = PDFMerger(requireContext())
         pdfSplitter = PDFSplitter(requireContext())
         pdfSigner = PDFSigner(requireContext())
         pdfCompressor = PDFCompressor(requireContext())
-        
         setupClickListeners(view)
     }
 
     private fun setupClickListeners(view: View) {
         view.findViewById<View>(R.id.cardMergePDF)?.setOnClickListener {
-            pendingAction = "merge"
-            openFilePicker()
+            pendingAction = "merge"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardSplitPDF)?.setOnClickListener {
-            pendingAction = "split"
-            openFilePicker()
+            pendingAction = "split"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardSignPDF)?.setOnClickListener {
-            pendingAction = "sign"
-            openFilePicker()
+            pendingAction = "sign"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardCompressPDF)?.setOnClickListener {
-            pendingAction = "compress"
-            openFilePicker()
+            pendingAction = "compress"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardConvertPDF)?.setOnClickListener {
             showToast("Convertir PDF - Proximamente")
@@ -100,11 +91,8 @@ class PDFModuleFragment : Fragment() {
     }
 
     private fun openFilePicker() {
-        try {
-            filePickerLauncher.launch(arrayOf("application/pdf"))
-        } catch (e: Exception) {
-            showToast("Error al abrir selector de archivos")
-        }
+        try { filePickerLauncher.launch(arrayOf("application/pdf")) }
+        catch (e: Exception) { showToast("Error al abrir selector de archivos") }
     }
 
     private fun showCompressDialog(uri: Uri) {
@@ -124,11 +112,11 @@ class PDFModuleFragment : Fragment() {
             max = 90
             progress = 50
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    qualityText.text = "Calidad: ${progress + 10}%"
+                override fun onProgressChanged(sb: SeekBar?, p: Int, b: Boolean) {
+                    qualityText.text = "Calidad: ${p + 10}%"
                 }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
             })
         }
 
@@ -145,65 +133,66 @@ class PDFModuleFragment : Fragment() {
             .setView(layout)
             .setPositiveButton("Comprimir") { _, _ ->
                 val quality = seekBar.progress + 10
-                compressPDF(uri, quality)
+                doCompress(uri, quality)
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
-    private fun compressPDF(uri: Uri, quality: Int) {
-        val progressDialog = AlertDialog.Builder(requireContext())
+    private fun doCompress(uri: Uri, quality: Int) {
+        val pd = AlertDialog.Builder(requireContext())
             .setTitle("Comprimiendo PDF")
             .setMessage("Reduciendo tamano...")
             .setCancelable(false)
             .create()
-        
-        progressDialog.show()
+        pd.show()
 
         Thread {
-            val outputFileName = "comprimido_${System.currentTimeMillis()}.pdf"
-            val result = pdfCompressor.compressPDF(uri, quality, outputFileName)
+            try {
+                val outputFileName = "comprimido_${System.currentTimeMillis()}.pdf"
+                val result = pdfCompressor.compressPDF(uri, quality, outputFileName)
 
-            requireActivity().runOnUiThread {
-                progressDialog.dismiss()
-                if (result != null) {
-                    val originalSize = getFileSize(uri)
-                    val compressedSize = result.length()
-                    val reduction = if (originalSize > 0) {
-                        ((1 - compressedSize.toDouble() / originalSize) * 100).toInt()
-                    } else 0
-                    
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("PDF Comprimido")
-                        .setMessage(
-                            "Original: ${fileManager.formatFileSize(originalSize)}\n" +
-                            "Comprimido: ${fileManager.formatFileSize(compressedSize)}\n" +
-                            "Reduccion: $reduction%"
-                        )
-                        .setPositiveButton("Abrir") { _, _ -> openFile(result) }
-                        .setNegativeButton("Cerrar", null)
-                        .show()
-                } else {
-                    showToast("Error al comprimir el PDF")
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    if (result != null && result.exists() && result.length() > 0) {
+                        val originalSize = getFileSize(uri)
+                        val compressedSize = result.length()
+                        val reduction = if (originalSize > 0) {
+                            ((1 - compressedSize.toDouble() / originalSize) * 100).toInt()
+                        } else 0
+
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("PDF Comprimido")
+                            .setMessage(
+                                "Original: ${fileManager.formatFileSize(originalSize)}\n" +
+                                "Comprimido: ${fileManager.formatFileSize(compressedSize)}\n" +
+                                "Reduccion: $reduction%"
+                            )
+                            .setPositiveButton("Abrir") { _, _ -> openFile(result) }
+                            .setNegativeButton("Cerrar", null)
+                            .show()
+                    } else {
+                        showToast("Error al comprimir el PDF")
+                    }
+                }
+            } catch (e: Exception) {
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    showToast("Error: ${e.message}")
                 }
             }
         }.start()
     }
 
     private fun showSignDialog(uri: Uri) {
-        val layout = LinearLayout(requireContext())
-        layout.orientation = LinearLayout.VERTICAL
-        layout.setPadding(48, 24, 48, 24)
-
-        val input = EditText(requireContext()).apply {
-            hint = "Ingrese su firma"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 24)
         }
-
+        val input = EditText(requireContext()).apply {
+            hint = "Ingrese su firma"; inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
         layout.addView(TextView(requireContext()).apply {
-            text = "PDF: ${getFileName(uri)}"
-            textSize = 14f
-            setPadding(0, 0, 0, 16)
+            text = "PDF: ${getFileName(uri)}"; textSize = 14f; setPadding(0, 0, 0, 16)
         })
         layout.addView(input)
 
@@ -211,29 +200,20 @@ class PDFModuleFragment : Fragment() {
             .setTitle("Firmar PDF")
             .setView(layout)
             .setPositiveButton("Firmar") { _, _ ->
-                val signature = input.text.toString()
-                if (signature.isNotBlank()) {
-                    signPDF(uri, signature)
-                } else {
-                    showToast("Ingrese una firma")
-                }
+                val sig = input.text.toString()
+                if (sig.isNotBlank()) signPDF(uri, sig) else showToast("Ingrese una firma")
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Cancelar", null).show()
     }
 
     private fun signPDF(uri: Uri, signature: String) {
-        val progressDialog = AlertDialog.Builder(requireContext())
-            .setTitle("Firmando PDF")
-            .setMessage("Agregando firma...")
-            .setCancelable(false)
-            .create()
-        progressDialog.show()
-
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Firmando PDF").setMessage("Agregando firma...").setCancelable(false).create()
+        pd.show()
         Thread {
             val result = pdfSigner.signPDF(uri, signature, 0, "firmado_${System.currentTimeMillis()}.pdf")
             requireActivity().runOnUiThread {
-                progressDialog.dismiss()
+                pd.dismiss()
                 if (result != null) showSuccessDialog(result, "PDF firmado exitosamente")
                 else showToast("Error al firmar el PDF")
             }
@@ -243,66 +223,53 @@ class PDFModuleFragment : Fragment() {
     private fun showSplitOptions(uri: Uri) {
         val pageCount = pdfSplitter.getPageCount(uri)
         if (pageCount <= 1) { showToast("El PDF tiene solo 1 pagina"); return }
-
         AlertDialog.Builder(requireContext())
             .setTitle("Dividir PDF - ${getFileName(uri)}")
             .setMessage("Total de paginas: $pageCount\n\nSeleccione una opcion:")
             .setPositiveButton("Partes iguales") { _, _ -> showDivideInParts(uri, pageCount) }
             .setNeutralButton("Rango") { _, _ -> showRangeSelector(uri, pageCount) }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Cancelar", null).show()
     }
 
     private fun showDivideInParts(uri: Uri, totalPages: Int) {
-        val parts = arrayOf("2", "3", "4", "5", "10")
         AlertDialog.Builder(requireContext())
             .setTitle("Dividir en partes iguales")
-            .setItems(parts) { _, which -> splitInParts(uri, parts[which].toInt()) }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setItems(arrayOf("2", "3", "4", "5", "10")) { _, w ->
+                splitInParts(uri, arrayOf("2","3","4","5","10")[w].toInt())
+            }
+            .setNegativeButton("Cancelar", null).show()
     }
 
     private fun showRangeSelector(uri: Uri, totalPages: Int) {
         val layout = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 24)
+            orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 24)
         }
-
         val fromInput = EditText(requireContext()).apply {
-            hint = "Desde pagina (1-$totalPages)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = "Desde pagina (1-$totalPages)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER
         }
         val toInput = EditText(requireContext()).apply {
-            hint = "Hasta pagina (1-$totalPages)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = "Hasta pagina (1-$totalPages)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER
         }
-
         layout.addView(TextView(requireContext()).apply {
-            text = "Total de paginas: $totalPages"
-            textSize = 14f
-            setPadding(0, 0, 0, 16)
+            text = "Total de paginas: $totalPages"; textSize = 14f; setPadding(0,0,0,16)
         })
-        layout.addView(fromInput)
-        layout.addView(toInput)
+        layout.addView(fromInput); layout.addView(toInput)
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Extraer rango de paginas")
-            .setView(layout)
+            .setTitle("Extraer rango de paginas").setView(layout)
             .setPositiveButton("Extraer") { _, _ ->
-                val from = fromInput.text.toString().toIntOrNull() ?: 1
-                val to = toInput.text.toString().toIntOrNull() ?: totalPages
-                val validFrom = maxOf(1, minOf(from, totalPages))
-                val validTo = maxOf(validFrom, minOf(to, totalPages))
-                val pages = (validFrom - 1 until validTo).toList()
+                val from = (fromInput.text.toString().toIntOrNull() ?: 1).coerceIn(1, totalPages)
+                val to = (toInput.text.toString().toIntOrNull() ?: totalPages).coerceIn(from, totalPages)
+                val pages = (from - 1 until to).toList()
                 if (pages.isNotEmpty()) splitSelectedPages(uri, pages)
-                else showToast("Rango de paginas invalido")
+                else showToast("Rango invalido")
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Cancelar", null).show()
     }
 
     private fun splitSelectedPages(uri: Uri, pages: List<Int>) {
-        val pd = AlertDialog.Builder(requireContext()).setTitle("Dividiendo PDF").setMessage("Extrayendo paginas...").setCancelable(false).create()
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Dividiendo PDF").setMessage("Extrayendo paginas...").setCancelable(false).create()
         pd.show()
         Thread {
             val result = pdfSplitter.splitPDF(uri, pages, "dividido_${System.currentTimeMillis()}.pdf")
@@ -315,7 +282,8 @@ class PDFModuleFragment : Fragment() {
     }
 
     private fun splitInParts(uri: Uri, parts: Int) {
-        val pd = AlertDialog.Builder(requireContext()).setTitle("Dividiendo PDF").setMessage("Dividiendo en $parts partes...").setCancelable(false).create()
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Dividiendo PDF").setMessage("Dividiendo...").setCancelable(false).create()
         pd.show()
         Thread {
             val results = pdfSplitter.splitPDFInParts(uri, parts)
@@ -325,8 +293,7 @@ class PDFModuleFragment : Fragment() {
                     AlertDialog.Builder(requireContext())
                         .setTitle("PDF dividido exitosamente")
                         .setMessage("Se crearon ${results.size} archivos:\n\n${results.joinToString("\n") { it.name }}")
-                        .setPositiveButton("Aceptar", null)
-                        .show()
+                        .setPositiveButton("Aceptar", null).show()
                 } else showToast("Error al dividir el PDF")
             }
         }.start()
@@ -337,12 +304,12 @@ class PDFModuleFragment : Fragment() {
             .setTitle("Unir PDFs")
             .setMessage("Se uniran ${uris.size} archivos:\n\n${uris.joinToString("\n") { getFileName(it) }}")
             .setPositiveButton("Unir") { _, _ -> mergePDFs(uris) }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Cancelar", null).show()
     }
 
     private fun mergePDFs(uris: List<Uri>) {
-        val pd = AlertDialog.Builder(requireContext()).setTitle("Uniendo PDFs").setMessage("Procesando...").setCancelable(false).create()
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Uniendo PDFs").setMessage("Procesando...").setCancelable(false).create()
         pd.show()
         Thread {
             val result = pdfMerger.mergePDFs(uris, "unido_${System.currentTimeMillis()}.pdf")
@@ -359,13 +326,14 @@ class PDFModuleFragment : Fragment() {
             .setTitle(title)
             .setMessage("Archivo: ${file.name}\nTamano: ${fileManager.formatFileSize(file.length())}")
             .setPositiveButton("Abrir") { _, _ -> openFile(file) }
-            .setNegativeButton("Cerrar", null)
-            .show()
+            .setNegativeButton("Cerrar", null).show()
     }
 
     private fun openFile(file: File) {
         try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.provider", file)
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                requireContext(), "${requireContext().packageName}.provider", file
+            )
             startActivity(Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/pdf")
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -375,11 +343,10 @@ class PDFModuleFragment : Fragment() {
 
     private fun getFileSize(uri: Uri): Long {
         var size = 0L
-        val cursor = requireContext().contentResolver.query(uri, null, null, null, null)
-        cursor?.use {
+        context?.contentResolver?.query(uri, null, null, null, null)?.use {
             if (it.moveToFirst()) {
-                val index = it.getColumnIndex(OpenableColumns.SIZE)
-                if (index >= 0) size = it.getLong(index)
+                val i = it.getColumnIndex(OpenableColumns.SIZE)
+                if (i >= 0) size = it.getLong(i)
             }
         }
         return size
@@ -387,11 +354,10 @@ class PDFModuleFragment : Fragment() {
 
     private fun getFileName(uri: Uri): String {
         var name = "desconocido"
-        val cursor = requireContext().contentResolver.query(uri, null, null, null, null)
-        cursor?.use {
+        context?.contentResolver?.query(uri, null, null, null, null)?.use {
             if (it.moveToFirst()) {
-                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index >= 0) name = it.getString(index)
+                val i = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (i >= 0) name = it.getString(i)
             }
         }
         return name
