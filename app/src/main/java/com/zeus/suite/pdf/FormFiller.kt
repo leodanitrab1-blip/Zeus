@@ -4,74 +4,94 @@ import android.content.Context
 import android.net.Uri
 import com.zeus.suite.utils.FileManager
 import java.io.File
-import java.io.FileOutputStream
 
 class FormFiller(private val context: Context) {
 
     private val fileManager = FileManager(context)
 
-    data class FormField(
-        val name: String,
-        val value: String
-    )
+    data class FormField(val name: String, val value: String)
 
     fun fillForm(uri: Uri, fields: List<FormField>): File? {
         val fileName = fileManager.getFileName(uri)
-        val filledFileName = "rellenado_$fileName"
+        val outputFile = fileManager.createOutputFile("rellenado_$fileName")
         val tempFile = fileManager.copyUriToTempFile(uri, fileName) ?: return null
-        val outputFile = fileManager.createOutputFile(filledFileName)
 
-        try {
+        return try {
             var content = tempFile.readText()
-
             for (field in fields) {
-                val placeholder = "{{${field.name}}}"
-                content = content.replace(placeholder, field.value)
+                content = content.replace("{{${field.name}}}", field.value)
+                content = content.replace("\${${field.name}}", field.value)
+                content = content.replace("[$field.name]", field.value)
             }
-
             outputFile.writeText(content)
             fileManager.deleteTempFile(tempFile)
-            return outputFile
-
+            outputFile
         } catch (e: Exception) {
             e.printStackTrace()
             fileManager.deleteTempFile(tempFile)
-            if (outputFile.exists()) {
-                outputFile.delete()
-            }
-            return null
+            if (outputFile.exists()) outputFile.delete()
+            null
         }
     }
 
-    fun fillFormWithMap(uri: Uri, fieldMap: Map<String, String>): File? {
-        val fields = fieldMap.map { FormField(it.key, it.value) }
-        return fillForm(uri, fields)
+    fun fillFormWithData(uri: Uri, data: List<Map<String, String>>, fieldMapping: Map<String, String>): List<File> {
+        val results = mutableListOf<File>()
+        val fileName = fileManager.getFileName(uri)
+        val baseName = fileName.substringBeforeLast(".")
+        val tempFile = fileManager.copyUriToTempFile(uri, fileName) ?: return results
+
+        try {
+            val template = tempFile.readText()
+
+            for ((index, row) in data.withIndex()) {
+                var content = template
+                for ((placeholder, columnName) in fieldMapping) {
+                    val value = row[columnName] ?: ""
+                    content = content.replace("{{$placeholder}}", value)
+                    content = content.replace("\${$placeholder}", value)
+                    content = content.replace("[$placeholder]", value)
+                }
+
+                val outputFile = fileManager.createOutputFile("${baseName}_${index + 1}.pdf")
+                outputFile.writeText(content)
+                results.add(outputFile)
+            }
+
+            fileManager.deleteTempFile(tempFile)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            fileManager.deleteTempFile(tempFile)
+        }
+
+        return results
     }
 
-    fun getPlaceholders(uri: Uri): List<String> {
+    fun extractPlaceholders(uri: Uri): List<String> {
         val fileName = fileManager.getFileName(uri)
         val tempFile = fileManager.copyUriToTempFile(uri, fileName) ?: return emptyList()
 
-        val placeholders = mutableListOf<String>()
-        try {
+        return try {
             val content = tempFile.readText()
-            val regex = Regex("\\{\\{(.+?)\\}\\}")
-            val matches = regex.findAll(content)
-            
-            for (match in matches) {
-                val placeholder = match.groupValues[1]
-                if (placeholder !in placeholders) {
-                    placeholders.add(placeholder)
+            val placeholders = mutableSetOf<String>()
+
+            val patterns = listOf(
+                Regex("\\{\\{(.+?)\\}\\}"),
+                Regex("\\\$\\{(.+?)\\}"),
+                Regex("\\[(.+?)\\]")
+            )
+
+            for (pattern in patterns) {
+                for (match in pattern.findAll(content)) {
+                    placeholders.add(match.groupValues[1])
                 }
             }
 
             fileManager.deleteTempFile(tempFile)
-            return placeholders
-
+            placeholders.toList().sorted()
         } catch (e: Exception) {
             e.printStackTrace()
             fileManager.deleteTempFile(tempFile)
-            return emptyList()
+            emptyList()
         }
     }
 }
