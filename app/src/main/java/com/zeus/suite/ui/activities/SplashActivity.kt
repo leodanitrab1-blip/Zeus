@@ -4,7 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import android.view.animation.ScaleAnimation
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -19,26 +22,31 @@ class SplashActivity : AppCompatActivity() {
         val logo = findViewById<ImageView>(R.id.zeusLogo)
         val bolt = findViewById<ImageView>(R.id.zeusBolt)
         val title = findViewById<TextView>(R.id.titleText)
-        val subtitle = findViewById<TextView>(R.id.subtitleText)
 
-        val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_scale)
-        fadeIn.duration = 1500
-        logo.startAnimation(fadeIn)
+        // Animacion del logo con escalado
+        val scaleAnim = ScaleAnimation(
+            0.3f, 1.0f,
+            0.3f, 1.0f,
+            Animation.RELATIVE_TO_SELF, 0.5f,
+            Animation.RELATIVE_TO_SELF, 0.5f
+        )
+        scaleAnim.duration = 1200
+        scaleAnim.fillAfter = true
+        logo.startAnimation(scaleAnim)
 
-        val boltAnim = AnimationUtils.loadAnimation(this, R.anim.bolt_flash)
-        boltAnim.duration = 2000
+        // Animacion del rayo con parpadeo
+        val boltAnim = AlphaAnimation(0.2f, 1.0f)
+        boltAnim.duration = 600
+        boltAnim.repeatMode = Animation.REVERSE
+        boltAnim.repeatCount = Animation.INFINITE
         bolt.startAnimation(boltAnim)
 
-        val slideUp = AnimationUtils.loadAnimation(this, R.anim.slide_in_right)
-        slideUp.duration = 1200
-        slideUp.startOffset = 300
-        title.startAnimation(slideUp)
+        // Animacion del titulo desde abajo
+        val slideAnim = AnimationUtils.loadAnimation(this, R.anim.slide_in_right)
+        slideAnim.duration = 1000
+        title.startAnimation(slideAnim)
 
-        val fadeInSub = AnimationUtils.loadAnimation(this, R.anim.fade_in)
-        fadeInSub.duration = 1000
-        fadeInSub.startOffset = 800
-        subtitle.startAnimation(fadeInSub)
-
+        // Navegar al main
         Handler(Looper.getMainLooper()).postDelayed({
             startActivity(Intent(this, MainActivity::class.java))
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)

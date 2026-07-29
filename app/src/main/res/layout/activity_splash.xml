@@ -4,6 +4,15 @@
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background">
 
+    <!-- Particulas de fondo -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/ic_zeus_bolt"
+        android:alpha="0.05"
+        android:scaleType="fitCenter"
+        android:layout_margin="50dp" />
+
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -11,81 +20,99 @@
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
-        <!-- Logo de Zeus -->
-        <ImageView
-            android:id="@+id/zeusLogo"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:src="@mipmap/ic_launcher"
-            android:scaleType="fitCenter"
-            android:contentDescription="@string/cd_logo" />
+        <!-- Marco circular con borde dorado -->
+        <FrameLayout
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:background="@drawable/circle_border">
 
-        <!-- Rayo electrico -->
+            <ImageView
+                android:id="@+id/zeusLogo"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center"
+                android:src="@drawable/logo_zeus"
+                android:scaleType="fitCenter" />
+        </FrameLayout>
+
+        <!-- Rayo animado -->
         <ImageView
             android:id="@+id/zeusBolt"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_zeus_bolt"
-            android:contentDescription="@string/cd_bolt"
-            android:layout_marginTop="-16dp"
-            android:alpha="0.8" />
+            android:layout_marginTop="-10dp"
+            android:alpha="0.9" />
 
-        <!-- Titulo ZEUS -->
+        <!-- Titulo con sombra -->
         <TextView
             android:id="@+id/titleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ZEUS"
-            android:textSize="48sp"
-            android:textColor="@color/white"
+            android:text="ZEUS SUITE"
+            android:textSize="42sp"
+            android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:letterSpacing="0.15"
+            android:letterSpacing="0.2"
             android:layout_marginTop="24dp"
-            android:shadowColor="@color/zeus_primary_dark"
-            android:shadowDx="2"
-            android:shadowDy="2"
-            android:shadowRadius="4" />
+            android:shadowColor="#0D47A1"
+            android:shadowDx="0"
+            android:shadowDy="4"
+            android:shadowRadius="8" />
+
+        <!-- Linea decorativa -->
+        <View
+            android:layout_width="60dp"
+            android:layout_height="3dp"
+            android:background="@color/zeus_bolt"
+            android:layout_marginTop="12dp" />
 
         <!-- Subtitulo -->
         <TextView
             android:id="@+id/subtitleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_slogan"
-            android:textSize="14sp"
-            android:textColor="@color/zeus_bolt_light"
-            android:layout_marginTop="8dp"
-            android:letterSpacing="0.05" />
+            android:text="PDF • Big Data • IA • Automatización"
+            android:textSize="13sp"
+            android:textColor="#FFE082"
+            android:layout_marginTop="12dp"
+            android:letterSpacing="0.08" />
 
-        <!-- Progress Bar -->
+        <!-- Progress Bar estilizado -->
         <ProgressBar
             android:id="@+id/progressBar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="32dp"
-            android:indeterminateTint="@color/white"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="48dp"
+            android:indeterminateTint="#FFFFFF"
             android:indeterminate="true" />
 
-        <!-- Version -->
+    </LinearLayout>
+
+    <!-- Texto de version -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="32dp"
+        android:orientation="vertical"
+        android:gravity="center">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="v1.0.0"
             android:textSize="12sp"
-            android:textColor="@color/zeus_text_hint"
-            android:layout_marginTop="16dp" />
+            android:textColor="#90CAF9" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="by Zeus Suite Team"
+            android:textSize="10sp"
+            android:textColor="#64B5F6"
+            android:layout_marginTop="4dp" />
     </LinearLayout>
-
-    <!-- Texto inferior -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="by Zeus Suite Team"
-        android:textSize="11sp"
-        android:textColor="@color/zeus_text_hint"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="24dp" />
 
 </RelativeLayout>
