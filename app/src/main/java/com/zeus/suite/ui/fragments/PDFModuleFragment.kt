@@ -96,8 +96,6 @@ class PDFModuleFragment : Fragment() {
     }
 
     private fun showCompressDialog(uri: Uri) {
-        val originalSize = getFileSize(uri)
-        
         val layout = LinearLayout(requireContext())
         layout.orientation = LinearLayout.VERTICAL
         layout.setPadding(48, 24, 48, 24)
@@ -121,7 +119,7 @@ class PDFModuleFragment : Fragment() {
         }
 
         layout.addView(TextView(requireContext()).apply {
-            text = "PDF: ${getFileName(uri)}\nTamano: ${fileManager.formatFileSize(originalSize)}"
+            text = "PDF: ${getFileName(uri)}"
             textSize = 14f
             setPadding(0, 0, 0, 16)
         })
@@ -154,19 +152,13 @@ class PDFModuleFragment : Fragment() {
 
                 requireActivity().runOnUiThread {
                     pd.dismiss()
-                    if (result != null && result.exists() && result.length() > 0) {
-                        val originalSize = getFileSize(uri)
+                    if (result != null && result.exists()) {
                         val compressedSize = result.length()
-                        val reduction = if (originalSize > 0) {
-                            ((1 - compressedSize.toDouble() / originalSize) * 100).toInt()
-                        } else 0
-
                         AlertDialog.Builder(requireContext())
                             .setTitle("PDF Comprimido")
                             .setMessage(
-                                "Original: ${fileManager.formatFileSize(originalSize)}\n" +
-                                "Comprimido: ${fileManager.formatFileSize(compressedSize)}\n" +
-                                "Reduccion: $reduction%"
+                                "Archivo: ${result.name}\n" +
+                                "Tamano: ${fileManager.formatFileSize(compressedSize)}"
                             )
                             .setPositiveButton("Abrir") { _, _ -> openFile(result) }
                             .setNegativeButton("Cerrar", null)
@@ -339,17 +331,6 @@ class PDFModuleFragment : Fragment() {
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             })
         } catch (e: Exception) { showToast("No hay aplicacion para abrir PDF") }
-    }
-
-    private fun getFileSize(uri: Uri): Long {
-        var size = 0L
-        context?.contentResolver?.query(uri, null, null, null, null)?.use {
-            if (it.moveToFirst()) {
-                val i = it.getColumnIndex(OpenableColumns.SIZE)
-                if (i >= 0) size = it.getLong(i)
-            }
-        }
-        return size
     }
 
     private fun getFileName(uri: Uri): String {
