@@ -1,10 +1,10 @@
 package com.zeus.suite.pdf
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
-import android.os.ParcelFileDescriptor
 import com.zeus.suite.utils.FileManager
 import java.io.File
 import java.io.FileOutputStream
@@ -29,6 +29,9 @@ class PDFMerger(private val context: Context) {
 
                     for (i in 0 until pageCount) {
                         val page = renderer.openPage(i)
+                        val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                        
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                         
                         val pageInfo = PdfDocument.PageInfo.Builder(
                             page.width,
@@ -37,9 +40,10 @@ class PDFMerger(private val context: Context) {
                         ).create()
                         
                         val newPage = mergedDocument.startPage(pageInfo)
-                        page.render(newPage.canvas, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        newPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
                         mergedDocument.finishPage(newPage)
                         
+                        bitmap.recycle()
                         page.close()
                     }
                     
