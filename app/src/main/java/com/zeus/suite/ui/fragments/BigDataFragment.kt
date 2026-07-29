@@ -39,18 +39,17 @@ class BigDataFragment : Fragment() {
     private var currentOffset = 0
     private var headers: List<String> = emptyList()
     private var pendingAction: String = ""
+    private var isLoading = false
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        if (uri != null) {
-            when (pendingAction) {
-                "csv" -> {
-                    currentUri = uri
-                    currentOffset = 0
-                    loadCSVBatch(uri, 0)
-                }
-            }
+        if (uri != null && pendingAction == "csv") {
+            currentUri = uri
+            currentOffset = 0
+            totalRows = 0
+            headers = emptyList()
+            countAndLoad(uri)
         }
     }
 
@@ -96,27 +95,52 @@ class BigDataFragment : Fragment() {
         }
     }
 
-    private fun loadCSVBatch(uri: Uri, offset: Int) {
+    private fun countAndLoad(uri: Uri) {
+        if (isLoading) return
+        isLoading = true
+
         val pd = AlertDialog.Builder(requireContext())
-            .setTitle("Cargando datos")
-            .setMessage("Leyendo lote desde fila ${NumberFormat.getNumberInstance(Locale.getDefault()).format(offset)}...")
+            .setTitle("Abriendo archivo")
+            .setMessage("Contando filas...")
             .setCancelable(false)
             .create()
         pd.show()
 
         Thread {
-            if (totalRows == 0) {
-                totalRows = csvHandler.getRowCount(uri)
-            }
+            totalRows = csvHandler.getRowCount(uri)
 
+            requireActivity().runOnUiThread {
+                pd.dismiss()
+                loadBatch(uri, 0)
+                isLoading = false
+            }
+        }.start()
+    }
+
+    private fun loadBatch(uri: Uri, offset: Int) {
+        if (isLoading) return
+        isLoading = true
+
+        val formatter = NumberFormat.getNumberInstance(Locale.getDefault())
+
+        val pd = AlertDialog.Builder(requireContext())
+            .setTitle("Cargando datos")
+            .setMessage("Filas ${formatter.format(offset + 1)} - ${formatter.format(offset + BATCH_SIZE)} de ${formatter.format(totalRows)}")
+            .setCancelable(false)
+            .create()
+        pd.show()
+
+        Thread {
             val data = csvHandler.readCSVBatch(uri, offset, BATCH_SIZE)
 
             requireActivity().runOnUiThread {
                 pd.dismiss()
+                isLoading = false
+
                 if (data != null && data.rows.isNotEmpty()) {
                     headers = data.headers
                     currentOffset = offset
-                    showDataTable(getFileName(uri), data, offset, totalRows)
+                    showDataTable(getFileName(uri), data)
                 } else if (offset == 0) {
                     showToast("Error al leer el archivo")
                 } else {
@@ -126,23 +150,87 @@ class BigDataFragment : Fragment() {
         }.start()
     }
 
-    private fun showDataTable(fileName: String, data: CSVHandler.CSVData, offset: Int, total: Int) {
+    private fun showDataTable(fileName: String, data: CSVHandler.CSVData) {
         val formatter = NumberFormat.getNumberInstance(Locale.getDefault())
+        val endRow = minOf(currentOffset + data.rows.size, totalRows)
 
         val mainLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16, 16, 16, 16)
         }
 
-        val infoText = TextView(requireContext()).apply {
-            text = "Archivo: $fileName\nFilas: ${formatter.format(total)} | Columnas: ${data.headers.size}\nMostrando: ${formatter.format(offset + 1)} - ${formatter.format(offset + data.rows.size)}"
-            textSize = 13f
-            setTextColor(0xFF1565C0.toInt())
+        // Info header
+        val infoLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(0, 0, 0, 12)
+        }
+
+        val infoText = TextView(requireContext()).apply {
+            text = "Archivo: $fileName"
+            textSize = 14f
+            setTextColor(0xFF1565C0.toInt())
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
-        mainLayout.addView(infoText)
+        infoLayout.addView(infoText)
 
+        val detailText = TextView(requireContext()).apply {
+            text = "Total: ${formatter.format(totalRows)} filas | ${data.headers.size} columnas"
+            textSize = 12f
+            setTextColor(0xFF5C6BC0.toInt())
+        }
+        infoLayout.addView(detailText)
+
+        val rangeText = TextView(requireContext()).apply {
+            text = "Mostrando: ${formatter.format(currentOffset + 1)} - ${formatter.format(endRow)}"
+            textSize = 12f
+            setTextColor(0xFF0D47A1.toInt())
+        }
+        infoLayout.addView(rangeText)
+
+        mainLayout.addView(infoLayout)
+
+        // Navigation buttons on top
+        val navLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 0, 0, 8)
+        }
+
+        if (currentOffset > 0) {
+            val prevBtn = Button(requireContext()).apply {
+                text = "<< Anterior ($BATCH_SIZE)"
+                setBackgroundColor(0xFF1565C0.toInt())
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 12f
+                setOnClickListener { currentUri?.let { loadBatch(it, maxOf(0, currentOffset - BATCH_SIZE)) } }
+            }
+            navLayout.addView(prevBtn)
+        }
+
+        // Spacer
+        if (currentOffset > 0 && currentOffset + BATCH_SIZE < totalRows) {
+            val spacer = View(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(8, 1)
+            }
+            navLayout.addView(spacer)
+        }
+
+        if (currentOffset + BATCH_SIZE < totalRows) {
+            val remaining = totalRows - currentOffset - BATCH_SIZE
+            val nextBtn = Button(requireContext()).apply {
+                text = "Siguiente (${formatter.format(remaining)}) >>"
+                setBackgroundColor(0xFF1565C0.toInt())
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 12f
+                setOnClickListener { currentUri?.let { loadBatch(it, currentOffset + BATCH_SIZE) } }
+            }
+            navLayout.addView(nextBtn)
+        }
+
+        if (navLayout.childCount > 0) {
+            mainLayout.addView(navLayout)
+        }
+
+        // Table
         val horizontalScroll = HorizontalScrollView(requireContext())
         val verticalScroll = ScrollView(requireContext())
 
@@ -193,40 +281,37 @@ class BigDataFragment : Fragment() {
         horizontalScroll.addView(verticalScroll)
         mainLayout.addView(horizontalScroll)
 
-        // Navigation buttons
-        val buttonLayout = LinearLayout(requireContext()).apply {
+        // Bottom navigation
+        val bottomNav = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 12, 0, 0)
+            setPadding(0, 8, 0, 0)
         }
 
-        if (offset > 0) {
-            val prevBtn = Button(requireContext()).apply {
-                text = "Anterior"
+        if (currentOffset > 0) {
+            val prevBtn2 = Button(requireContext()).apply {
+                text = "<< Anterior"
                 setBackgroundColor(0xFF1565C0.toInt())
                 setTextColor(0xFFFFFFFF.toInt())
-                setOnClickListener {
-                    val newOffset = maxOf(0, offset - BATCH_SIZE)
-                    currentUri?.let { loadCSVBatch(it, newOffset) }
-                }
+                textSize = 12f
+                setOnClickListener { currentUri?.let { loadBatch(it, maxOf(0, currentOffset - BATCH_SIZE)) } }
             }
-            buttonLayout.addView(prevBtn)
+            bottomNav.addView(prevBtn2)
         }
 
-        if (offset + data.rows.size < total) {
-            val nextBtn = Button(requireContext()).apply {
-                text = "Siguiente (${formatter.format(total - offset - data.rows.size)} restantes)"
+        if (currentOffset + BATCH_SIZE < totalRows) {
+            val nextBtn2 = Button(requireContext()).apply {
+                text = "Siguiente >>"
                 setBackgroundColor(0xFF1565C0.toInt())
                 setTextColor(0xFFFFFFFF.toInt())
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setOnClickListener {
-                    val newOffset = offset + BATCH_SIZE
-                    currentUri?.let { loadCSVBatch(it, newOffset) }
-                }
+                textSize = 12f
+                setOnClickListener { currentUri?.let { loadBatch(it, currentOffset + BATCH_SIZE) } }
             }
-            buttonLayout.addView(nextBtn)
+            bottomNav.addView(nextBtn2)
         }
 
-        mainLayout.addView(buttonLayout)
+        if (bottomNav.childCount > 0) {
+            mainLayout.addView(bottomNav)
+        }
 
         AlertDialog.Builder(requireContext())
             .setTitle("Datos CSV")
@@ -259,9 +344,7 @@ class BigDataFragment : Fragment() {
         val columns = headers.toTypedArray()
         AlertDialog.Builder(requireContext())
             .setTitle("Filtrar por columna")
-            .setItems(columns) { _, which ->
-                showFilterValueDialog(which, columns[which])
-            }
+            .setItems(columns) { _, which -> showFilterValueDialog(which, columns[which]) }
             .setNegativeButton("Cancelar", null)
             .show()
     }
@@ -277,11 +360,9 @@ class BigDataFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle("Filtrar: $colName")
             .setItems(uniqueValues) { _, which ->
-                val filtered = data.rows.filter {
-                    colIndex < it.size && it[colIndex] == uniqueValues[which]
-                }
+                val filtered = data.rows.filter { colIndex < it.size && it[colIndex] == uniqueValues[which] }
                 val filteredData = CSVHandler.CSVData(data.headers, filtered)
-                showDataTable("${getFileName(currentUri!!)} (filtrado)", filteredData, 0, filtered.size)
+                showDataTable("${getFileName(currentUri!!)} (filtrado)", filteredData)
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -300,12 +381,10 @@ class BigDataFragment : Fragment() {
                 val query = input.text.toString().lowercase()
                 if (query.isNotBlank()) {
                     val data = csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE) ?: return@setPositiveButton
-                    val results = data.rows.filter { row ->
-                        row.any { it.lowercase().contains(query) }
-                    }
+                    val results = data.rows.filter { row -> row.any { it.lowercase().contains(query) } }
                     if (results.isNotEmpty()) {
                         val resultData = CSVHandler.CSVData(data.headers, results)
-                        showDataTable("Resultados: $query", resultData, 0, results.size)
+                        showDataTable("Resultados: $query", resultData)
                     } else {
                         showToast("No se encontraron resultados")
                     }
@@ -317,9 +396,10 @@ class BigDataFragment : Fragment() {
 
     private fun showStats() {
         val data = csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE) ?: return
+        val formatter = NumberFormat.getNumberInstance(Locale.getDefault())
         val sb = StringBuilder()
         sb.appendLine("=== ESTADISTICAS ===")
-        sb.appendLine("Total filas: ${NumberFormat.getNumberInstance(Locale.getDefault()).format(totalRows)}")
+        sb.appendLine("Total filas: ${formatter.format(totalRows)}")
         sb.appendLine("Columnas: ${data.headers.size}")
         sb.appendLine()
 
@@ -327,8 +407,8 @@ class BigDataFragment : Fragment() {
             val uniqueCount = data.rows.mapNotNull { if (index < it.size) it[index] else null }.toSet().size
             val emptyCount = data.rows.count { index >= it.size || it[index].isBlank() }
             sb.appendLine("$header:")
-            sb.appendLine("  Valores unicos: ${NumberFormat.getNumberInstance(Locale.getDefault()).format(uniqueCount)}")
-            sb.appendLine("  Vacios: ${NumberFormat.getNumberInstance(Locale.getDefault()).format(emptyCount)}")
+            sb.appendLine("  Valores unicos: ${formatter.format(uniqueCount)}")
+            sb.appendLine("  Vacios: ${formatter.format(emptyCount)}")
             sb.appendLine()
         }
 
