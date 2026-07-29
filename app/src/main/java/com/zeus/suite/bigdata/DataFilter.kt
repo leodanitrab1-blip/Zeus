@@ -8,87 +8,60 @@ class DataFilter {
         val value: String
     )
 
-    enum class FilterOperator {
-        EQUALS,
-        NOT_EQUALS,
-        CONTAINS,
-        GREATER_THAN,
-        LESS_THAN,
-        STARTS_WITH,
-        ENDS_WITH
+    enum class FilterOperator(val label: String) {
+        EQUALS("Igual a"),
+        NOT_EQUALS("Diferente de"),
+        CONTAINS("Contiene"),
+        NOT_CONTAINS("No contiene"),
+        STARTS_WITH("Empieza con"),
+        ENDS_WITH("Termina con"),
+        GREATER_THAN("Mayor que"),
+        LESS_THAN("Menor que"),
+        IS_EMPTY("Esta vacio"),
+        IS_NOT_EMPTY("No esta vacio")
     }
 
-    fun filter(
-        headers: List<String>,
-        rows: List<List<String>>,
-        conditions: List<FilterCondition>
-    ): List<List<String>> {
-        return rows.filter { row ->
+    fun filter(data: CSVHandler.CSVData, conditions: List<FilterCondition>): CSVHandler.CSVData {
+        if (conditions.isEmpty()) return data
+        val filteredRows = data.rows.filter { row ->
             conditions.all { condition ->
-                if (condition.columnIndex >= row.size) return@all false
-                val cellValue = row[condition.columnIndex]
-                evaluateCondition(cellValue, condition.operator, condition.value)
+                if (condition.columnIndex >= row.size) {
+                    return@all condition.operator == FilterOperator.IS_EMPTY
+                }
+                evaluateCondition(row[condition.columnIndex], condition.operator, condition.value)
             }
         }
+        return CSVHandler.CSVData(data.headers, filteredRows)
     }
 
-    private fun evaluateCondition(
-        cellValue: String,
-        operator: FilterOperator,
-        value: String
-    ): Boolean {
+    private fun evaluateCondition(cellValue: String, operator: FilterOperator, value: String): Boolean {
         return when (operator) {
             FilterOperator.EQUALS -> cellValue.equals(value, ignoreCase = true)
             FilterOperator.NOT_EQUALS -> !cellValue.equals(value, ignoreCase = true)
             FilterOperator.CONTAINS -> cellValue.contains(value, ignoreCase = true)
-            FilterOperator.GREATER_THAN -> {
-                try {
-                    cellValue.toDouble() > value.toDouble()
-                } catch (e: NumberFormatException) {
-                    false
-                }
-            }
-            FilterOperator.LESS_THAN -> {
-                try {
-                    cellValue.toDouble() < value.toDouble()
-                } catch (e: NumberFormatException) {
-                    false
-                }
-            }
+            FilterOperator.NOT_CONTAINS -> !cellValue.contains(value, ignoreCase = true)
             FilterOperator.STARTS_WITH -> cellValue.startsWith(value, ignoreCase = true)
             FilterOperator.ENDS_WITH -> cellValue.endsWith(value, ignoreCase = true)
-        }
-    }
-
-    fun filterByColumnValue(
-        headers: List<String>,
-        rows: List<List<String>>,
-        columnName: String,
-        value: String
-    ): List<List<String>> {
-        val columnIndex = headers.indexOfFirst {
-            it.equals(columnName, ignoreCase = true)
-        }
-
-        if (columnIndex == -1) return emptyList()
-
-        return filter(
-            headers,
-            rows,
-            listOf(FilterCondition(columnIndex, FilterOperator.EQUALS, value))
-        )
-    }
-
-    fun getUniqueValues(
-        rows: List<List<String>>,
-        columnIndex: Int
-    ): List<String> {
-        val uniqueValues = mutableSetOf<String>()
-        for (row in rows) {
-            if (columnIndex < row.size) {
-                uniqueValues.add(row[columnIndex])
+            FilterOperator.GREATER_THAN -> {
+                val a = cellValue.toDoubleOrNull()
+                val b = value.toDoubleOrNull()
+                a != null && b != null && a > b
             }
+            FilterOperator.LESS_THAN -> {
+                val a = cellValue.toDoubleOrNull()
+                val b = value.toDoubleOrNull()
+                a != null && b != null && a < b
+            }
+            FilterOperator.IS_EMPTY -> cellValue.isBlank()
+            FilterOperator.IS_NOT_EMPTY -> cellValue.isNotBlank()
         }
-        return uniqueValues.toList().sorted()
+    }
+
+    fun getUniqueValues(data: CSVHandler.CSVData, columnIndex: Int): List<String> {
+        val values = mutableSetOf<String>()
+        for (row in data.rows) {
+            if (columnIndex < row.size) values.add(row[columnIndex])
+        }
+        return values.toList().sorted()
     }
 }
