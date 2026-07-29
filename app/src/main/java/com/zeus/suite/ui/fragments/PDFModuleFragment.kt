@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
 import com.zeus.suite.pdf.PDFMerger
+import com.zeus.suite.pdf.PDFSigner
 import com.zeus.suite.pdf.PDFSplitter
 import com.zeus.suite.utils.FileManager
 import java.io.File
@@ -31,7 +32,9 @@ class PDFModuleFragment : Fragment() {
     private lateinit var fileManager: FileManager
     private lateinit var pdfMerger: PDFMerger
     private lateinit var pdfSplitter: PDFSplitter
+    private lateinit var pdfSigner: PDFSigner
     private var pendingAction: String = ""
+    private var pendingUri: Uri? = null
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -48,6 +51,10 @@ class PDFModuleFragment : Fragment() {
             }
             "split" -> {
                 showSplitOptions(uris[0])
+            }
+            "sign" -> {
+                pendingUri = uris[0]
+                showSignDialog(uris[0])
             }
         }
     }
@@ -66,6 +73,7 @@ class PDFModuleFragment : Fragment() {
         fileManager = FileManager(requireContext())
         pdfMerger = PDFMerger(requireContext())
         pdfSplitter = PDFSplitter(requireContext())
+        pdfSigner = PDFSigner(requireContext())
         
         setupClickListeners(view)
     }
@@ -82,7 +90,8 @@ class PDFModuleFragment : Fragment() {
         }
 
         view.findViewById<View>(R.id.cardSignPDF)?.setOnClickListener {
-            showToast("Firmar PDF - Proximamente")
+            pendingAction = "sign"
+            openFilePicker()
         }
 
         view.findViewById<View>(R.id.cardCompressPDF)?.setOnClickListener {
@@ -100,6 +109,62 @@ class PDFModuleFragment : Fragment() {
         } catch (e: Exception) {
             showToast("Error al abrir selector de archivos")
         }
+    }
+
+    private fun showSignDialog(uri: Uri) {
+        val layout = LinearLayout(requireContext())
+        layout.orientation = LinearLayout.VERTICAL
+        layout.setPadding(48, 24, 48, 24)
+
+        val input = EditText(requireContext()).apply {
+            hint = "Ingrese su firma"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+
+        layout.addView(TextView(requireContext()).apply {
+            text = "PDF: ${getFileName(uri)}"
+            textSize = 14f
+            setPadding(0, 0, 0, 16)
+        })
+        layout.addView(input)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Firmar PDF")
+            .setView(layout)
+            .setPositiveButton("Firmar") { _, _ ->
+                val signature = input.text.toString()
+                if (signature.isNotBlank()) {
+                    signPDF(uri, signature)
+                } else {
+                    showToast("Ingrese una firma")
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun signPDF(uri: Uri, signature: String) {
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle("Firmando PDF")
+            .setMessage("Agregando firma...")
+            .setCancelable(false)
+            .create()
+        
+        progressDialog.show()
+
+        Thread {
+            val outputFileName = "firmado_${System.currentTimeMillis()}.pdf"
+            val result = pdfSigner.signPDF(uri, signature, 0, outputFileName)
+
+            requireActivity().runOnUiThread {
+                progressDialog.dismiss()
+                if (result != null) {
+                    showSuccessDialog(result, "PDF firmado exitosamente")
+                } else {
+                    showToast("Error al firmar el PDF")
+                }
+            }
+        }.start()
     }
 
     private fun showSplitOptions(uri: Uri) {
