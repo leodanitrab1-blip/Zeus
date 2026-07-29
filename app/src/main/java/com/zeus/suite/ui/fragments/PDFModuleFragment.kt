@@ -77,9 +77,7 @@ class PDFModuleFragment : Fragment() {
         view.findViewById<View>(R.id.cardSignPDF)?.setOnClickListener {
             pendingAction = "sign"; openFilePicker()
         }
-        view.findViewById<View>(R.id.cardCompressPDF)?.setOnClickListener {
-            showToast("Comprimir PDF - Proximamente")
-        }
+        view.findViewById<View>(R.id.cardCompressPDF)?.visibility = View.GONE
         view.findViewById<View>(R.id.cardConvertPDF)?.setOnClickListener {
             showToast("Convertir PDF - Proximamente")
         }
