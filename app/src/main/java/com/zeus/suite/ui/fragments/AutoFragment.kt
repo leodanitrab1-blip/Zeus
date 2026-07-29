@@ -97,7 +97,7 @@ class AutoFragment : Fragment() {
         }
         view.findViewById<View>(R.id.cardStatement)?.setOnClickListener {
             pendingAction = "statement"
-            openSingleFilePicker(arrayOf("text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "*/*"))
+            openSingleFilePicker(arrayOf("text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/pdf", "*/*"))
         }
     }
 
@@ -199,28 +199,36 @@ class AutoFragment : Fragment() {
     private fun analyzeInvoices(uri: Uri) {
         val pd = progressDialog("Analizando facturas..."); pd.show()
         Thread {
-            val summary = invoiceAnalyzer.analyzeInvoices(uri)
-            val reportFile = invoiceAnalyzer.generateMonthlyReport(uri)
-            requireActivity().runOnUiThread {
-                pd.dismiss()
-                if (summary != null) {
-                    val f = NumberFormat.getNumberInstance(Locale.getDefault())
-                    val sb = StringBuilder()
-                    sb.appendLine("=== ANALISIS DE FACTURAS ===")
-                    sb.appendLine("Total facturas: ${f.format(summary.totalInvoices)}")
-                    sb.appendLine("Monto total: ${"%.2f".format(summary.totalAmount)}")
-                    sb.appendLine("Promedio: ${"%.2f".format(summary.averageAmount)}")
-                    sb.appendLine("Factura mas alta: ${summary.maxInvoice.first} (${"%.2f".format(summary.maxInvoice.second)})")
-                    sb.appendLine("Factura mas baja: ${summary.minInvoice.first} (${"%.2f".format(summary.minInvoice.second)})")
-                    sb.appendLine()
-                    if (summary.monthlyTotals.isNotEmpty()) {
-                        sb.appendLine("--- Totales Mensuales ---")
-                        for ((month, total) in summary.monthlyTotals.toList().sortedBy { it.first }) {
-                            sb.appendLine("$month: ${"%.2f".format(total)}")
+            try {
+                val summary = invoiceAnalyzer.analyzeInvoices(uri)
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    if (summary != null && summary.totalInvoices > 0) {
+                        val f = NumberFormat.getNumberInstance(Locale.getDefault())
+                        val sb = StringBuilder()
+                        sb.appendLine("=== ANALISIS DE FACTURAS ===")
+                        sb.appendLine("Total facturas: ${f.format(summary.totalInvoices)}")
+                        sb.appendLine("Monto total: ${"%.2f".format(summary.totalAmount)}")
+                        sb.appendLine("Promedio: ${"%.2f".format(summary.averageAmount)}")
+                        sb.appendLine("Factura mas alta: ${summary.maxInvoice.first} (${"%.2f".format(summary.maxInvoice.second)})")
+                        sb.appendLine("Factura mas baja: ${summary.minInvoice.first} (${"%.2f".format(summary.minInvoice.second)})")
+                        if (summary.monthlyTotals.isNotEmpty()) {
+                            sb.appendLine()
+                            sb.appendLine("--- Totales Mensuales ---")
+                            for ((month, total) in summary.monthlyTotals.toList().sortedBy { it.first }) {
+                                sb.appendLine("$month: ${"%.2f".format(total)}")
+                            }
                         }
+                        showTextResult("Analisis de Facturas", sb.toString())
+                    } else {
+                        toast("No se encontraron facturas. Verifique que el archivo tenga columnas de montos.")
                     }
-                    showTextResult("Analisis de Facturas", sb.toString())
-                } else toast("Error al analizar facturas")
+                }
+            } catch (e: Exception) {
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    toast("Error: ${e.message}")
+                }
             }
         }.start()
     }
@@ -229,30 +237,38 @@ class AutoFragment : Fragment() {
     private fun analyzeStatements(uri: Uri) {
         val pd = progressDialog("Analizando estados de cuenta..."); pd.show()
         Thread {
-            val summary = statementAnalyzer.analyzeStatements(uri)
-            val reportFile = statementAnalyzer.generateAnalysisReport(uri)
-            requireActivity().runOnUiThread {
-                pd.dismiss()
-                if (summary != null) {
-                    val f = NumberFormat.getNumberInstance(Locale.getDefault())
-                    val sb = StringBuilder()
-                    sb.appendLine("=== ANALISIS DE ESTADOS DE CUENTA ===")
-                    sb.appendLine("Transacciones: ${f.format(summary.totalTransactions)}")
-                    sb.appendLine("Creditos: +${"%.2f".format(summary.totalCredits)}")
-                    sb.appendLine("Debitos: -${"%.2f".format(summary.totalDebits)}")
-                    sb.appendLine("Balance neto: ${"%.2f".format(summary.netBalance)}")
-                    sb.appendLine("Promedio: ${"%.2f".format(summary.averageTransaction)}")
-                    sb.appendLine("Mayor credito: ${"%.2f".format(summary.largestCredit)}")
-                    sb.appendLine("Mayor debito: ${"%.2f".format(summary.largestDebit)}")
-                    sb.appendLine()
-                    if (summary.categoryTotals.isNotEmpty()) {
-                        sb.appendLine("--- Totales por Categoria ---")
-                        for ((cat, total) in summary.categoryTotals.toList().sortedByDescending { it.second }) {
-                            sb.appendLine("$cat: ${"%.2f".format(total)}")
+            try {
+                val summary = statementAnalyzer.analyzeStatements(uri)
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    if (summary != null && summary.totalTransactions > 0) {
+                        val f = NumberFormat.getNumberInstance(Locale.getDefault())
+                        val sb = StringBuilder()
+                        sb.appendLine("=== ANALISIS DE ESTADOS DE CUENTA ===")
+                        sb.appendLine("Transacciones: ${f.format(summary.totalTransactions)}")
+                        sb.appendLine("Creditos: +${"%.2f".format(summary.totalCredits)}")
+                        sb.appendLine("Debitos: -${"%.2f".format(summary.totalDebits)}")
+                        sb.appendLine("Balance neto: ${"%.2f".format(summary.netBalance)}")
+                        sb.appendLine("Promedio: ${"%.2f".format(summary.averageTransaction)}")
+                        sb.appendLine("Mayor credito: ${"%.2f".format(summary.largestCredit)}")
+                        sb.appendLine("Mayor debito: ${"%.2f".format(summary.largestDebit)}")
+                        if (summary.categoryTotals.isNotEmpty()) {
+                            sb.appendLine()
+                            sb.appendLine("--- Totales por Categoria ---")
+                            for ((cat, total) in summary.categoryTotals.toList().sortedByDescending { it.second }) {
+                                sb.appendLine("$cat: ${"%.2f".format(total)}")
+                            }
                         }
+                        showTextResult("Analisis de Estados de Cuenta", sb.toString())
+                    } else {
+                        toast("No se encontraron transacciones. Verifique el formato del archivo.")
                     }
-                    showTextResult("Analisis de Estados de Cuenta", sb.toString())
-                } else toast("Error al analizar")
+                }
+            } catch (e: Exception) {
+                requireActivity().runOnUiThread {
+                    pd.dismiss()
+                    toast("Error: ${e.message}")
+                }
             }
         }.start()
     }
