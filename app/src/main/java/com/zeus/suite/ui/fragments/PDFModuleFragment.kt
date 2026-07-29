@@ -9,7 +9,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -44,6 +46,16 @@ class PDFModuleFragment : Fragment() {
                 showSplitOptions(uris[0])
             } else {
                 showMergeConfirmation(uris)
+            }
+        }
+    }
+
+    private val singleFileLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                showSplitOptions(uri)
             }
         }
     }
@@ -104,16 +116,6 @@ class PDFModuleFragment : Fragment() {
         singleFileLauncher.launch(intent)
     }
 
-    private val singleFileLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                showSplitOptions(uri)
-            }
-        }
-    }
-
     private fun showSplitOptions(uri: Uri) {
         val pageCount = pdfSplitter.getPageCount(uri)
         
@@ -123,10 +125,9 @@ class PDFModuleFragment : Fragment() {
         }
 
         val options = arrayOf(
-            "Seleccionar paginas especificas",
-            "Dividir en 2 partes",
-            "Dividir en 3 partes",
-            "Dividir en 4 partes"
+            "Dividir en partes iguales",
+            "Extraer rango de paginas",
+            "Extraer paginas especificas"
         )
 
         AlertDialog.Builder(requireContext())
@@ -134,44 +135,140 @@ class PDFModuleFragment : Fragment() {
             .setMessage("Total de paginas: $pageCount")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> showPageSelector(uri, pageCount)
-                    1 -> splitInParts(uri, 2)
-                    2 -> splitInParts(uri, 3)
-                    3 -> splitInParts(uri, 4)
+                    0 -> showDivideInParts(uri, pageCount)
+                    1 -> showRangeSelector(uri, pageCount)
+                    2 -> showPageNumberInput(uri, pageCount)
                 }
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
-    private fun showPageSelector(uri: Uri, totalPages: Int) {
-        val linearLayout = LinearLayout(requireContext())
-        linearLayout.orientation = LinearLayout.VERTICAL
-        linearLayout.setPadding(48, 24, 48, 24)
-
-        val checkBoxes = mutableListOf<CheckBox>()
+    private fun showDivideInParts(uri: Uri, totalPages: Int) {
+        val parts = arrayOf("2", "3", "4", "5", "10")
         
-        for (i in 0 until totalPages) {
-            val checkBox = CheckBox(requireContext())
-            checkBox.text = "Pagina ${i + 1}"
-            checkBox.isChecked = true
-            linearLayout.addView(checkBox)
-            checkBoxes.add(checkBox)
+        AlertDialog.Builder(requireContext())
+            .setTitle("Dividir en partes iguales")
+            .setItems(parts) { _, which ->
+                val numParts = parts[which].toInt()
+                splitInParts(uri, numParts)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showRangeSelector(uri: Uri, totalPages: Int) {
+        val layout = LinearLayout(requireContext())
+        layout.orientation = LinearLayout.VERTICAL
+        layout.setPadding(48, 24, 48, 24)
+
+        val fromInput = EditText(requireContext()).apply {
+            hint = "Desde pagina (1-$totalPages)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
         }
 
+        val toInput = EditText(requireContext()).apply {
+            hint = "Hasta pagina (1-$totalPages)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(TextView(requireContext()).apply {
+            text = "Total de paginas: $totalPages"
+            textSize = 14f
+            setPadding(0, 0, 0, 16)
+        })
+        layout.addView(fromInput)
+        layout.addView(toInput)
+
         AlertDialog.Builder(requireContext())
-            .setTitle("Seleccionar paginas")
-            .setView(linearLayout)
-            .setPositiveButton("Dividir") { _, _ ->
-                val selectedPages = checkBoxes
-                    .mapIndexedNotNull { index, cb -> if (cb.isChecked) index else null }
+            .setTitle("Extraer rango de paginas")
+            .setView(layout)
+            .setPositiveButton("Extraer") { _, _ ->
+                val from = fromInput.text.toString().toIntOrNull() ?: 1
+                val to = toInput.text.toString().toIntOrNull() ?: totalPages
+                val validFrom = maxOf(1, minOf(from, totalPages))
+                val validTo = maxOf(validFrom, minOf(to, totalPages))
                 
-                if (selectedPages.isNotEmpty()) {
-                    splitSelectedPages(uri, selectedPages)
+                val pages = (validFrom - 1 until validTo).toList()
+                
+                if (pages.isNotEmpty()) {
+                    splitSelectedPages(uri, pages)
+                } else {
+                    showToast("Rango de paginas invalido")
                 }
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun showPageNumberInput(uri: Uri, totalPages: Int) {
+        val layout = LinearLayout(requireContext())
+        layout.orientation = LinearLayout.VERTICAL
+        layout.setPadding(48, 24, 48, 24)
+
+        val input = EditText(requireContext()).apply {
+            hint = "Ejemplo: 1,5,10-15,20"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+
+        layout.addView(TextView(requireContext()).apply {
+            text = "Total de paginas: $totalPages"
+            textSize = 14f
+            setPadding(0, 0, 0, 8)
+        })
+        layout.addView(TextView(requireContext()).apply {
+            text = "Ingrese numeros de pagina separados por comas.\nPuede usar guiones para rangos."
+            textSize = 12f
+            setPadding(0, 0, 0, 16)
+        })
+        layout.addView(input)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Extraer paginas especificas")
+            .setView(layout)
+            .setPositiveButton("Extraer") { _, _ ->
+                val text = input.text.toString()
+                val pages = parsePageNumbers(text, totalPages)
+                
+                if (pages.isNotEmpty()) {
+                    splitSelectedPages(uri, pages)
+                } else {
+                    showToast("No se ingresaron paginas validas")
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun parsePageNumbers(input: String, totalPages: Int): List<Int> {
+        val pages = mutableSetOf<Int>()
+        
+        val parts = input.split(",")
+        
+        for (part in parts) {
+            val trimmed = part.trim()
+            
+            if (trimmed.contains("-")) {
+                val range = trimmed.split("-")
+                if (range.size == 2) {
+                    val start = range[0].trim().toIntOrNull() ?: continue
+                    val end = range[1].trim().toIntOrNull() ?: continue
+                    
+                    for (i in start..end) {
+                        if (i in 1..totalPages) {
+                            pages.add(i - 1)
+                        }
+                    }
+                }
+            } else {
+                val page = trimmed.toIntOrNull()
+                if (page != null && page in 1..totalPages) {
+                    pages.add(page - 1)
+                }
+            }
+        }
+        
+        return pages.toList().sorted()
     }
 
     private fun splitSelectedPages(uri: Uri, pages: List<Int>) {
