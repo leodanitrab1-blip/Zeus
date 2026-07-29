@@ -1,5 +1,8 @@
 package com.zeus.suite.ui.fragments
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -7,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -26,12 +30,14 @@ class BigDataFragment : Fragment() {
 
     companion object {
         fun newInstance(): BigDataFragment = BigDataFragment()
-        private const val MAX_DISPLAY_ROWS = 500
+        private const val BATCH_SIZE = 500
     }
 
     private lateinit var csvHandler: CSVHandler
-    private var currentData: CSVHandler.CSVData? = null
     private var currentUri: Uri? = null
+    private var totalRows = 0
+    private var currentOffset = 0
+    private var headers: List<String> = emptyList()
     private var pendingAction: String = ""
 
     private val filePickerLauncher = registerForActivityResult(
@@ -41,7 +47,8 @@ class BigDataFragment : Fragment() {
             when (pendingAction) {
                 "csv" -> {
                     currentUri = uri
-                    showLoadingPreview(uri)
+                    currentOffset = 0
+                    loadCSVBatch(uri, 0)
                 }
             }
         }
@@ -59,64 +66,67 @@ class BigDataFragment : Fragment() {
 
     private fun setupClickListeners(view: View) {
         view.findViewById<View>(R.id.cardCSV)?.setOnClickListener {
-            pendingAction = "csv"
-            openFilePicker()
+            pendingAction = "csv"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardExcel)?.setOnClickListener {
             showToast("Abrir Excel - Proximamente")
         }
         view.findViewById<View>(R.id.cardFilter)?.setOnClickListener {
-            if (currentData != null) showFilterDialog()
+            if (headers.isNotEmpty()) showFilterDialog()
             else showToast("Abra un archivo primero")
         }
         view.findViewById<View>(R.id.cardSearch)?.setOnClickListener {
-            if (currentData != null) showSearchDialog()
+            if (headers.isNotEmpty()) showSearchDialog()
             else showToast("Abra un archivo primero")
         }
         view.findViewById<View>(R.id.cardChart)?.setOnClickListener {
             showToast("Graficar - Proximamente")
         }
         view.findViewById<View>(R.id.cardStats)?.setOnClickListener {
-            if (currentData != null) showStats()
+            if (headers.isNotEmpty()) showStats()
             else showToast("Abra un archivo primero")
         }
     }
 
     private fun openFilePicker() {
         try {
-            filePickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "*/*"))
+            filePickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
         } catch (e: Exception) {
-            showToast("Error al abrir selector de archivos")
+            showToast("Error al abrir selector")
         }
     }
 
-    private fun showLoadingPreview(uri: Uri) {
+    private fun loadCSVBatch(uri: Uri, offset: Int) {
         val pd = AlertDialog.Builder(requireContext())
-            .setTitle("Cargando CSV")
-            .setMessage("Leyendo archivo...")
+            .setTitle("Cargando datos")
+            .setMessage("Leyendo lote desde fila ${NumberFormat.getNumberInstance(Locale.getDefault()).format(offset)}...")
             .setCancelable(false)
             .create()
         pd.show()
 
         Thread {
-            val data = csvHandler.readCSV(uri)
+            if (totalRows == 0) {
+                totalRows = csvHandler.getRowCount(uri)
+            }
+
+            val data = csvHandler.readCSVBatch(uri, offset, BATCH_SIZE)
 
             requireActivity().runOnUiThread {
                 pd.dismiss()
-
                 if (data != null && data.rows.isNotEmpty()) {
-                    currentData = data
-                    showDataPreview(getFileName(uri), data)
+                    headers = data.headers
+                    currentOffset = offset
+                    showDataTable(getFileName(uri), data, offset, totalRows)
+                } else if (offset == 0) {
+                    showToast("Error al leer el archivo")
                 } else {
-                    showToast("Error al leer el archivo CSV")
+                    showToast("No hay mas datos")
                 }
             }
         }.start()
     }
 
-    private fun showDataPreview(fileName: String, data: CSVHandler.CSVData) {
-        val totalRows = data.rows.size
-        val totalCols = data.headers.size
+    private fun showDataTable(fileName: String, data: CSVHandler.CSVData, offset: Int, total: Int) {
         val formatter = NumberFormat.getNumberInstance(Locale.getDefault())
 
         val mainLayout = LinearLayout(requireContext()).apply {
@@ -124,9 +134,8 @@ class BigDataFragment : Fragment() {
             setPadding(16, 16, 16, 16)
         }
 
-        // Info header
         val infoText = TextView(requireContext()).apply {
-            text = "Archivo: $fileName\nFilas: ${formatter.format(totalRows)} | Columnas: $totalCols\nMostrando primeras $MAX_DISPLAY_ROWS filas"
+            text = "Archivo: $fileName\nFilas: ${formatter.format(total)} | Columnas: ${data.headers.size}\nMostrando: ${formatter.format(offset + 1)} - ${formatter.format(offset + data.rows.size)}"
             textSize = 13f
             setTextColor(0xFF1565C0.toInt())
             setPadding(0, 0, 0, 12)
@@ -134,7 +143,6 @@ class BigDataFragment : Fragment() {
         }
         mainLayout.addView(infoText)
 
-        // Horizontal scroll for wide tables
         val horizontalScroll = HorizontalScrollView(requireContext())
         val verticalScroll = ScrollView(requireContext())
 
@@ -153,21 +161,29 @@ class BigDataFragment : Fragment() {
         }
         for (header in data.headers) {
             val tv = createCell(header, 12f, 0xFFFFFFFF.toInt(), true)
+            tv.setOnLongClickListener {
+                copyToClipboard(header)
+                showToast("Copiado: $header")
+                true
+            }
             headerRow.addView(tv)
         }
         tableLayout.addView(headerRow)
 
         // Data rows
-        val displayRows = minOf(totalRows, MAX_DISPLAY_ROWS)
-        for (i in 0 until displayRows) {
-            val row = data.rows[i]
+        for ((index, row) in data.rows.withIndex()) {
             val tableRow = TableRow(requireContext()).apply {
                 setPadding(4, 2, 4, 2)
-                if (i % 2 == 0) setBackgroundColor(0xFFF5F9FF.toInt())
+                if (index % 2 == 0) setBackgroundColor(0xFFF5F9FF.toInt())
                 else setBackgroundColor(0xFFFFFFFF.toInt())
             }
             for (cell in row) {
                 val tv = createCell(cell, 11f, 0xFF1A237E.toInt(), false)
+                tv.setOnLongClickListener {
+                    copyToClipboard(cell)
+                    showToast("Copiado: $cell")
+                    true
+                }
                 tableRow.addView(tv)
             }
             tableLayout.addView(tableRow)
@@ -177,45 +193,46 @@ class BigDataFragment : Fragment() {
         horizontalScroll.addView(verticalScroll)
         mainLayout.addView(horizontalScroll)
 
-        // Buttons
+        // Navigation buttons
         val buttonLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 12, 0, 0)
         }
 
-        if (totalRows > MAX_DISPLAY_ROWS) {
-            val loadMoreBtn = Button(requireContext()).apply {
-                text = "Ver más (${formatter.format(totalRows - MAX_DISPLAY_ROWS)} restantes)"
+        if (offset > 0) {
+            val prevBtn = Button(requireContext()).apply {
+                text = "Anterior"
                 setBackgroundColor(0xFF1565C0.toInt())
                 setTextColor(0xFFFFFFFF.toInt())
-                setOnClickListener { showAllDataDialog(fileName, data) }
+                setOnClickListener {
+                    val newOffset = maxOf(0, offset - BATCH_SIZE)
+                    currentUri?.let { loadCSVBatch(it, newOffset) }
+                }
             }
-            buttonLayout.addView(loadMoreBtn)
+            buttonLayout.addView(prevBtn)
+        }
+
+        if (offset + data.rows.size < total) {
+            val nextBtn = Button(requireContext()).apply {
+                text = "Siguiente (${formatter.format(total - offset - data.rows.size)} restantes)"
+                setBackgroundColor(0xFF1565C0.toInt())
+                setTextColor(0xFFFFFFFF.toInt())
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnClickListener {
+                    val newOffset = offset + BATCH_SIZE
+                    currentUri?.let { loadCSVBatch(it, newOffset) }
+                }
+            }
+            buttonLayout.addView(nextBtn)
         }
 
         mainLayout.addView(buttonLayout)
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Vista previa CSV")
+            .setTitle("Datos CSV")
             .setView(mainLayout)
             .setPositiveButton("Cerrar", null)
             .show()
-    }
-
-    private fun showAllDataDialog(fileName: String, data: CSVHandler.CSVData) {
-        val pd = AlertDialog.Builder(requireContext())
-            .setTitle("Cargando todos los datos")
-            .setMessage("Preparando ${NumberFormat.getNumberInstance(Locale.getDefault()).format(data.rows.size)} filas...")
-            .setCancelable(false)
-            .create()
-        pd.show()
-
-        Thread {
-            requireActivity().runOnUiThread {
-                pd.dismiss()
-                showDataPreview(fileName, data)
-            }
-        }.start()
     }
 
     private fun createCell(text: String, size: Float, color: Int, bold: Boolean): TextView {
@@ -232,10 +249,14 @@ class BigDataFragment : Fragment() {
         }
     }
 
-    private fun showFilterDialog() {
-        val data = currentData ?: return
-        val columns = data.headers.toTypedArray()
+    private fun copyToClipboard(text: String) {
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("CSV Data", text)
+        clipboard.setPrimaryClip(clip)
+    }
 
+    private fun showFilterDialog() {
+        val columns = headers.toTypedArray()
         AlertDialog.Builder(requireContext())
             .setTitle("Filtrar por columna")
             .setItems(columns) { _, which ->
@@ -246,8 +267,7 @@ class BigDataFragment : Fragment() {
     }
 
     private fun showFilterValueDialog(colIndex: Int, colName: String) {
-        val data = currentData ?: return
-
+        val data = csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE) ?: return
         val values = mutableSetOf<String>()
         for (row in data.rows) {
             if (colIndex < row.size) values.add(row[colIndex])
@@ -261,15 +281,14 @@ class BigDataFragment : Fragment() {
                     colIndex < it.size && it[colIndex] == uniqueValues[which]
                 }
                 val filteredData = CSVHandler.CSVData(data.headers, filtered)
-                showDataPreview("${getFileName(currentUri!!)} (filtrado)", filteredData)
+                showDataTable("${getFileName(currentUri!!)} (filtrado)", filteredData, 0, filtered.size)
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
     private fun showSearchDialog() {
-        val data = currentData ?: return
-        val input = android.widget.EditText(requireContext()).apply {
+        val input = EditText(requireContext()).apply {
             hint = "Texto a buscar..."
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
@@ -280,12 +299,13 @@ class BigDataFragment : Fragment() {
             .setPositiveButton("Buscar") { _, _ ->
                 val query = input.text.toString().lowercase()
                 if (query.isNotBlank()) {
+                    val data = csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE) ?: return@setPositiveButton
                     val results = data.rows.filter { row ->
                         row.any { it.lowercase().contains(query) }
                     }
                     if (results.isNotEmpty()) {
                         val resultData = CSVHandler.CSVData(data.headers, results)
-                        showDataPreview("Resultados: $query", resultData)
+                        showDataTable("Resultados: $query", resultData, 0, results.size)
                     } else {
                         showToast("No se encontraron resultados")
                     }
@@ -296,10 +316,10 @@ class BigDataFragment : Fragment() {
     }
 
     private fun showStats() {
-        val data = currentData ?: return
+        val data = csvHandler.readCSVBatch(currentUri!!, 0, BATCH_SIZE) ?: return
         val sb = StringBuilder()
         sb.appendLine("=== ESTADISTICAS ===")
-        sb.appendLine("Filas: ${NumberFormat.getNumberInstance(Locale.getDefault()).format(data.rows.size)}")
+        sb.appendLine("Total filas: ${NumberFormat.getNumberInstance(Locale.getDefault()).format(totalRows)}")
         sb.appendLine("Columnas: ${data.headers.size}")
         sb.appendLine()
 
@@ -313,7 +333,7 @@ class BigDataFragment : Fragment() {
         }
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Estadisticas del archivo")
+            .setTitle("Estadisticas")
             .setMessage(sb.toString())
             .setPositiveButton("Cerrar", null)
             .show()
