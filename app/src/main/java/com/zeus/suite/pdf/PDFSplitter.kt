@@ -1,67 +1,161 @@
 package com.zeus.suite.pdf
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import com.zeus.suite.utils.FileManager
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 
 class PDFSplitter(private val context: Context) {
 
     private val fileManager = FileManager(context)
 
-    fun splitPDF(uri: Uri, pagesPerSplit: Int): List<File> {
-        val outputFiles = mutableListOf<File>()
-        val fileName = fileManager.getFileName(uri)
-        val tempFile = fileManager.copyUriToTempFile(uri, fileName) ?: return outputFiles
-
-        try {
-            val totalBytes = tempFile.length()
-            
-            if (totalBytes <= 0 || pagesPerSplit <= 0) {
-                fileManager.deleteTempFile(tempFile)
-                return outputFiles
+    fun getPageCount(uri: Uri): Int {
+        return try {
+            val pfd = context.contentResolver.openFileDescriptor(uri, "r")
+            if (pfd != null) {
+                val renderer = PdfRenderer(pfd)
+                val count = renderer.pageCount
+                renderer.close()
+                pfd.close()
+                count
+            } else {
+                0
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0
+        }
+    }
 
-            val bytesPerSplit = totalBytes / pagesPerSplit
+    fun splitPDF(
+        uri: Uri,
+        selectedPages: List<Int>,
+        outputFileName: String
+    ): File? {
+        if (selectedPages.isEmpty()) return null
+
+        val outputFile = fileManager.createOutputFile(outputFileName)
+        val pdfDocument = PdfDocument()
+
+        return try {
+            val pfd = context.contentResolver.openFileDescriptor(uri, "r")
             
-            if (bytesPerSplit <= 0) {
-                fileManager.deleteTempFile(tempFile)
-                return outputFiles
-            }
+            if (pfd != null) {
+                val renderer = PdfRenderer(pfd)
 
-            FileInputStream(tempFile).use { input ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                var currentSplit = 1
-                var bytesWritten: Long = 0
-                var currentOutput: FileOutputStream? = null
+                for (pageIndex in selectedPages) {
+                    if (pageIndex < 0 || pageIndex >= renderer.pageCount) continue
 
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    if (currentOutput == null || bytesWritten >= bytesPerSplit) {
-                        currentOutput?.close()
-                        val splitFileName = "${fileName}_parte${currentSplit}.pdf"
-                        val splitFile = fileManager.createOutputFile(splitFileName)
-                        currentOutput = FileOutputStream(splitFile)
-                        outputFiles.add(splitFile)
-                        bytesWritten = 0
-                        currentSplit++
-                    }
-                    currentOutput?.write(buffer, 0, bytesRead)
-                    bytesWritten += bytesRead
+                    val page = renderer.openPage(pageIndex)
+                    val bitmap = Bitmap.createBitmap(
+                        page.width,
+                        page.height,
+                        Bitmap.Config.ARGB_8888
+                    )
+
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                    val pageInfo = PdfDocument.PageInfo.Builder(
+                        page.width,
+                        page.height,
+                        pageIndex + 1
+                    ).create()
+
+                    val newPage = pdfDocument.startPage(pageInfo)
+                    newPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                    pdfDocument.finishPage(newPage)
+
+                    bitmap.recycle()
+                    page.close()
                 }
-                currentOutput?.close()
+
+                renderer.close()
+                pfd.close()
             }
 
-            fileManager.deleteTempFile(tempFile)
-            return outputFiles
+            FileOutputStream(outputFile).use { fos ->
+                pdfDocument.writeTo(fos)
+            }
+
+            pdfDocument.close()
+            outputFile
 
         } catch (e: Exception) {
             e.printStackTrace()
-            outputFiles.forEach { fileManager.deleteTempFile(it) }
-            fileManager.deleteTempFile(tempFile)
-            return emptyList()
+            pdfDocument.close()
+            if (outputFile.exists()) outputFile.delete()
+            null
         }
+    }
+
+    fun splitPDFInParts(
+        uri: Uri,
+        parts: Int
+    ): List<File> {
+        val outputFiles = mutableListOf<File>()
+        val totalPages = getPageCount(uri)
+
+        if (totalPages <= 1 || parts <= 1) return outputFiles
+
+        val pagesPerPart = totalPages / parts
+        val baseName = fileManager.getFileName(uri).substringBeforeLast(".")
+
+        try {
+            val pfd = context.contentResolver.openFileDescriptor(uri, "r")
+            
+            if (pfd != null) {
+                val renderer = PdfRenderer(pfd)
+
+                for (part in 0 until parts) {
+                    val startPage = part * pagesPerPart
+                    val endPage = if (part == parts - 1) totalPages - 1 else startPage + pagesPerPart - 1
+
+                    val pdfDocument = PdfDocument()
+
+                    for (i in startPage..endPage) {
+                        val page = renderer.openPage(i)
+                        val bitmap = Bitmap.createBitmap(
+                            page.width,
+                            page.height,
+                            Bitmap.Config.ARGB_8888
+                        )
+
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                        val pageInfo = PdfDocument.PageInfo.Builder(
+                            page.width,
+                            page.height,
+                            i - startPage + 1
+                        ).create()
+
+                        val newPage = pdfDocument.startPage(pageInfo)
+                        newPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                        pdfDocument.finishPage(newPage)
+
+                        bitmap.recycle()
+                        page.close()
+                    }
+
+                    val outputFile = fileManager.createOutputFile("${baseName}_parte${part + 1}.pdf")
+                    FileOutputStream(outputFile).use { fos ->
+                        pdfDocument.writeTo(fos)
+                    }
+                    pdfDocument.close()
+                    outputFiles.add(outputFile)
+                }
+
+                renderer.close()
+                pfd.close()
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return outputFiles
     }
 }
