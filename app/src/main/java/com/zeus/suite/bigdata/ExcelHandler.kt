@@ -2,13 +2,10 @@ package com.zeus.suite.bigdata
 
 import android.content.Context
 import android.net.Uri
-import com.zeus.suite.utils.FileManager
-import java.io.File
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class ExcelHandler(private val context: Context) {
-
-    private val fileManager = FileManager(context)
-    private val csvHandler = CSVHandler(context)
 
     data class ExcelData(
         val sheetName: String,
@@ -16,79 +13,70 @@ class ExcelHandler(private val context: Context) {
         val rows: List<List<String>>
     )
 
-    fun readExcel(uri: Uri): ExcelData? {
+    fun readExcel(uri: Uri, maxRows: Int = 1000): ExcelData? {
         return try {
-            val fileName = fileManager.getFileName(uri)
-            val tempFile = fileManager.copyUriToTempFile(uri, fileName) ?: return null
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            val lines = reader.readLines()
+            reader.close()
 
-            val content = tempFile.readText()
-            val lines = content.lines().filter { it.isNotBlank() }
+            if (lines.size < 2) return null
 
-            if (lines.size < 2) {
-                fileManager.deleteTempFile(tempFile)
-                return null
-            }
-
-            val headers = lines[0].split("\t")
+            val headers = lines[0].split("\t", ",").map { it.trim().replace("\"", "") }
             val rows = mutableListOf<List<String>>()
-
-            for (i in 1 until lines.size) {
-                val row = lines[i].split("\t")
-                if (row.size == headers.size) {
+            
+            val displayRows = minOf(lines.size - 1, maxRows)
+            for (i in 1..displayRows) {
+                val row = lines[i].split("\t", ",").map { it.trim().replace("\"", "") }
+                if (row.isNotEmpty()) {
                     rows.add(row)
                 }
             }
 
-            fileManager.deleteTempFile(tempFile)
-
             ExcelData(
-                sheetName = fileName.substringBeforeLast("."),
+                sheetName = "Hoja1",
                 headers = headers,
                 rows = rows
             )
-
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
 
-    fun getSheetNames(uri: Uri): List<String> {
-        val data = readExcel(uri)
-        return if (data != null) listOf(data.sheetName) else emptyList()
-    }
-
-    fun readExcelAsCSV(uri: Uri): CSVHandler.CSVData? {
-        val data = readExcel(uri) ?: return null
-        return CSVHandler.CSVData(data.headers, data.rows)
-    }
-
-    fun exportToExcel(
-        headers: List<String>,
-        rows: List<List<String>>,
-        fileName: String
-    ): File? {
+    fun readExcelBatch(uri: Uri, startRow: Int, batchSize: Int): ExcelData? {
         return try {
-            val file = fileManager.createOutputFile("$fileName.xls")
-            val sb = StringBuilder()
-
-            sb.appendLine(headers.joinToString("\t"))
-
-            for (row in rows) {
-                sb.appendLine(row.joinToString("\t"))
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            
+            val firstLine = reader.readLine() ?: return null
+            val headers = firstLine.split("\t", ",").map { it.trim().replace("\"", "") }
+            
+            var currentRow = 0
+            var line: String?
+            val rows = mutableListOf<List<String>>()
+            
+            while (currentRow < startRow) {
+                reader.readLine()
+                currentRow++
             }
-
-            file.writeText(sb.toString())
-            file
-
+            
+            var count = 0
+            line = reader.readLine()
+            while (line != null && count < batchSize) {
+                if (line.isNotBlank()) {
+                    rows.add(line.split("\t", ",").map { it.trim().replace("\"", "") })
+                    count++
+                }
+                line = reader.readLine()
+                currentRow++
+            }
+            
+            reader.close()
+            ExcelData("Hoja1", headers, rows)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
-    }
-
-    fun getRowCount(uri: Uri): Int {
-        val data = readExcel(uri)
-        return data?.rows?.size ?: 0
     }
 }
