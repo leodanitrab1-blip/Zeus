@@ -32,36 +32,35 @@ class PDFCompressor(private val context: Context) {
                     val page = renderer.openPage(i)
                     
                     val scale = when {
-                        quality < 30 -> 0.5f
-                        quality < 60 -> 0.7f
-                        else -> 0.85f
+                        quality < 30 -> 0.4f
+                        quality < 60 -> 0.6f
+                        quality < 80 -> 0.8f
+                        else -> 1.0f
                     }
                     
                     val newWidth = (page.width * scale).toInt()
                     val newHeight = (page.height * scale).toInt()
 
-                    val bitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.RGB_565)
+                    val originalBitmap = Bitmap.createBitmap(
+                        page.width, page.height, Bitmap.Config.RGB_565
+                    )
+                    
+                    page.render(originalBitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     
                     val scaledBitmap = Bitmap.createScaledBitmap(
-                        Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888).also {
-                            page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        },
-                        newWidth,
-                        newHeight,
-                        true
+                        originalBitmap, newWidth, newHeight, true
                     )
 
+                    originalBitmap.recycle()
+
                     val pageInfo = PdfDocument.PageInfo.Builder(
-                        newWidth,
-                        newHeight,
-                        i + 1
+                        newWidth, newHeight, i + 1
                     ).create()
 
                     val newPage = pdfDocument.startPage(pageInfo)
                     newPage.canvas.drawBitmap(scaledBitmap, 0f, 0f, null)
                     pdfDocument.finishPage(newPage)
 
-                    bitmap.recycle()
                     scaledBitmap.recycle()
                     page.close()
                 }
@@ -75,6 +74,12 @@ class PDFCompressor(private val context: Context) {
             }
 
             pdfDocument.close()
+            
+            if (outputFile.length() <= 0) {
+                outputFile.delete()
+                return null
+            }
+            
             outputFile
 
         } catch (e: Exception) {
