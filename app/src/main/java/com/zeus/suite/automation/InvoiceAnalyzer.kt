@@ -29,13 +29,11 @@ class InvoiceAnalyzer(private val context: Context) {
         
         if (data == null || data.rows.isEmpty()) return null
 
-        val amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor", "suma"))
+        var amountIndex = findColumnIndex(data.headers, listOf("monto", "total", "importe", "amount", "valor", "suma"))
         val dateIndex = findColumnIndex(data.headers, listOf("fecha", "date", "mes", "month", "periodo"))
         val invoiceIndex = findColumnIndex(data.headers, listOf("factura", "invoice", "numero", "id", "codigo", "num"))
 
-        if (amountIndex == -1) {
-            amountIndex = 0
-        }
+        if (amountIndex == -1) amountIndex = 0
 
         val amounts = mutableListOf<Double>()
         val invoiceAmounts = mutableListOf<Pair<String, Double>>()
