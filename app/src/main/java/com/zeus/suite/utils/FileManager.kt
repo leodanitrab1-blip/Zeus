@@ -2,6 +2,7 @@ package com.zeus.suite.utils
 
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
 import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
@@ -14,9 +15,7 @@ class FileManager(private val context: Context) {
         cursor?.use {
             if (it.moveToFirst()) {
                 val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex >= 0) {
-                    name = it.getString(nameIndex)
-                }
+                if (nameIndex >= 0) name = it.getString(nameIndex)
             }
         }
         return name
@@ -28,9 +27,7 @@ class FileManager(private val context: Context) {
         cursor?.use {
             if (it.moveToFirst()) {
                 val sizeIndex = it.getColumnIndex(OpenableColumns.SIZE)
-                if (sizeIndex >= 0) {
-                    size = it.getLong(sizeIndex)
-                }
+                if (sizeIndex >= 0) size = it.getLong(sizeIndex)
             }
         }
         return size
@@ -51,23 +48,19 @@ class FileManager(private val context: Context) {
         }
     }
 
-    fun getAppStorageDir(): File {
-        val dir = File(context.filesDir, "ZeusSuite")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
+    fun getDownloadsDir(): File {
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "ZeusSuite")
+        if (!dir.exists()) dir.mkdirs()
         return dir
     }
 
     fun createOutputFile(fileName: String): File {
-        val dir = getAppStorageDir()
+        val dir = getDownloadsDir()
         return File(dir, fileName)
     }
 
     fun deleteTempFile(file: File) {
-        if (file.exists()) {
-            file.delete()
-        }
+        if (file.exists()) file.delete()
     }
 
     fun formatFileSize(size: Long): String {
