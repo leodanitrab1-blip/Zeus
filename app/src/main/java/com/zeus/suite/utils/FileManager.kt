@@ -6,6 +6,8 @@ import android.os.Environment
 import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class FileManager(private val context: Context) {
 

@@ -9,14 +9,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.zeus.suite.R
-import com.zeus.suite.pdf.PDFCompressor
 import com.zeus.suite.pdf.PDFMerger
 import com.zeus.suite.pdf.PDFSigner
 import com.zeus.suite.pdf.PDFSplitter
@@ -35,7 +33,6 @@ class PDFModuleFragment : Fragment() {
     private lateinit var pdfMerger: PDFMerger
     private lateinit var pdfSplitter: PDFSplitter
     private lateinit var pdfSigner: PDFSigner
-    private lateinit var pdfCompressor: PDFCompressor
     private var pendingAction: String = ""
 
     private val filePickerLauncher = registerForActivityResult(
@@ -50,7 +47,6 @@ class PDFModuleFragment : Fragment() {
             }
             "split" -> showSplitOptions(uris[0])
             "sign" -> showSignDialog(uris[0])
-            "compress" -> showCompressDialog(uris[0])
         }
     }
 
@@ -68,7 +64,6 @@ class PDFModuleFragment : Fragment() {
         pdfMerger = PDFMerger(requireContext())
         pdfSplitter = PDFSplitter(requireContext())
         pdfSigner = PDFSigner(requireContext())
-        pdfCompressor = PDFCompressor(requireContext())
         setupClickListeners(view)
     }
 
@@ -83,7 +78,7 @@ class PDFModuleFragment : Fragment() {
             pendingAction = "sign"; openFilePicker()
         }
         view.findViewById<View>(R.id.cardCompressPDF)?.setOnClickListener {
-            pendingAction = "compress"; openFilePicker()
+            showToast("Comprimir PDF - Proximamente")
         }
         view.findViewById<View>(R.id.cardConvertPDF)?.setOnClickListener {
             showToast("Convertir PDF - Proximamente")
@@ -93,87 +88,6 @@ class PDFModuleFragment : Fragment() {
     private fun openFilePicker() {
         try { filePickerLauncher.launch(arrayOf("application/pdf")) }
         catch (e: Exception) { showToast("Error al abrir selector de archivos") }
-    }
-
-    private fun showCompressDialog(uri: Uri) {
-        val layout = LinearLayout(requireContext())
-        layout.orientation = LinearLayout.VERTICAL
-        layout.setPadding(48, 24, 48, 24)
-
-        val qualityText = TextView(requireContext()).apply {
-            text = "Calidad: 50%"
-            textSize = 16f
-            setPadding(0, 0, 0, 8)
-        }
-
-        val seekBar = SeekBar(requireContext()).apply {
-            max = 90
-            progress = 50
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, p: Int, b: Boolean) {
-                    qualityText.text = "Calidad: ${p + 10}%"
-                }
-                override fun onStartTrackingTouch(sb: SeekBar?) {}
-                override fun onStopTrackingTouch(sb: SeekBar?) {}
-            })
-        }
-
-        layout.addView(TextView(requireContext()).apply {
-            text = "PDF: ${getFileName(uri)}"
-            textSize = 14f
-            setPadding(0, 0, 0, 16)
-        })
-        layout.addView(qualityText)
-        layout.addView(seekBar)
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Comprimir PDF")
-            .setView(layout)
-            .setPositiveButton("Comprimir") { _, _ ->
-                val quality = seekBar.progress + 10
-                doCompress(uri, quality)
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
-    private fun doCompress(uri: Uri, quality: Int) {
-        val pd = AlertDialog.Builder(requireContext())
-            .setTitle("Comprimiendo PDF")
-            .setMessage("Reduciendo tamano...")
-            .setCancelable(false)
-            .create()
-        pd.show()
-
-        Thread {
-            try {
-                val outputFileName = "comprimido_${System.currentTimeMillis()}.pdf"
-                val result = pdfCompressor.compressPDF(uri, quality, outputFileName)
-
-                requireActivity().runOnUiThread {
-                    pd.dismiss()
-                    if (result != null && result.exists()) {
-                        val compressedSize = result.length()
-                        AlertDialog.Builder(requireContext())
-                            .setTitle("PDF Comprimido")
-                            .setMessage(
-                                "Archivo: ${result.name}\n" +
-                                "Tamano: ${fileManager.formatFileSize(compressedSize)}"
-                            )
-                            .setPositiveButton("Abrir") { _, _ -> openFile(result) }
-                            .setNegativeButton("Cerrar", null)
-                            .show()
-                    } else {
-                        showToast("Error al comprimir el PDF")
-                    }
-                }
-            } catch (e: Exception) {
-                requireActivity().runOnUiThread {
-                    pd.dismiss()
-                    showToast("Error: ${e.message}")
-                }
-            }
-        }.start()
     }
 
     private fun showSignDialog(uri: Uri) {
