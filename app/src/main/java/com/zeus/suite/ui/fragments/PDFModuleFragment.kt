@@ -110,21 +110,14 @@ class PDFModuleFragment : Fragment() {
             return
         }
 
-        val options = arrayOf(
-            "Dividir en partes iguales",
-            "Extraer rango de paginas",
-            "Extraer paginas especificas"
-        )
-
         AlertDialog.Builder(requireContext())
             .setTitle("Dividir PDF - ${getFileName(uri)}")
-            .setMessage("Total de paginas: $pageCount")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> showDivideInParts(uri, pageCount)
-                    1 -> showRangeSelector(uri, pageCount)
-                    2 -> showPageNumberInput(uri, pageCount)
-                }
+            .setMessage("Total de paginas: $pageCount\n\nSeleccione una opcion:")
+            .setPositiveButton("Partes iguales") { _, _ ->
+                showDivideInParts(uri, pageCount)
+            }
+            .setNeutralButton("Rango") { _, _ ->
+                showRangeSelector(uri, pageCount)
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -174,7 +167,6 @@ class PDFModuleFragment : Fragment() {
                 val to = toInput.text.toString().toIntOrNull() ?: totalPages
                 val validFrom = maxOf(1, minOf(from, totalPages))
                 val validTo = maxOf(validFrom, minOf(to, totalPages))
-                
                 val pages = (validFrom - 1 until validTo).toList()
                 
                 if (pages.isNotEmpty()) {
@@ -185,75 +177,6 @@ class PDFModuleFragment : Fragment() {
             }
             .setNegativeButton("Cancelar", null)
             .show()
-    }
-
-    private fun showPageNumberInput(uri: Uri, totalPages: Int) {
-        val layout = LinearLayout(requireContext())
-        layout.orientation = LinearLayout.VERTICAL
-        layout.setPadding(48, 24, 48, 24)
-
-        val input = EditText(requireContext()).apply {
-            hint = "Ejemplo: 1,5,10-15,20"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-        }
-
-        layout.addView(TextView(requireContext()).apply {
-            text = "Total de paginas: $totalPages"
-            textSize = 14f
-            setPadding(0, 0, 0, 8)
-        })
-        layout.addView(TextView(requireContext()).apply {
-            text = "Ingrese numeros de pagina separados por comas.\nPuede usar guiones para rangos."
-            textSize = 12f
-            setPadding(0, 0, 0, 16)
-        })
-        layout.addView(input)
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Extraer paginas especificas")
-            .setView(layout)
-            .setPositiveButton("Extraer") { _, _ ->
-                val text = input.text.toString()
-                val pages = parsePageNumbers(text, totalPages)
-                
-                if (pages.isNotEmpty()) {
-                    splitSelectedPages(uri, pages)
-                } else {
-                    showToast("No se ingresaron paginas validas")
-                }
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
-    private fun parsePageNumbers(input: String, totalPages: Int): List<Int> {
-        val pages = mutableSetOf<Int>()
-        val parts = input.split(",")
-        
-        for (part in parts) {
-            val trimmed = part.trim()
-            
-            if (trimmed.contains("-")) {
-                val range = trimmed.split("-")
-                if (range.size == 2) {
-                    val start = range[0].trim().toIntOrNull() ?: continue
-                    val end = range[1].trim().toIntOrNull() ?: continue
-                    
-                    for (i in start..end) {
-                        if (i in 1..totalPages) {
-                            pages.add(i - 1)
-                        }
-                    }
-                }
-            } else {
-                val page = trimmed.toIntOrNull()
-                if (page != null && page in 1..totalPages) {
-                    pages.add(page - 1)
-                }
-            }
-        }
-        
-        return pages.toList().sorted()
     }
 
     private fun splitSelectedPages(uri: Uri, pages: List<Int>) {
@@ -274,7 +197,6 @@ class PDFModuleFragment : Fragment() {
 
             requireActivity().runOnUiThread {
                 progressDialog.dismiss()
-
                 if (result != null) {
                     showSuccessDialog(result, "PDF dividido exitosamente")
                 } else {
@@ -298,11 +220,9 @@ class PDFModuleFragment : Fragment() {
 
             requireActivity().runOnUiThread {
                 progressDialog.dismiss()
-
                 if (results.isNotEmpty()) {
                     val message = "Se crearon ${results.size} archivos:\n\n" +
                         results.joinToString("\n") { it.name }
-                    
                     AlertDialog.Builder(requireContext())
                         .setTitle("PDF dividido exitosamente")
                         .setMessage(message)
@@ -343,7 +263,6 @@ class PDFModuleFragment : Fragment() {
 
             requireActivity().runOnUiThread {
                 progressDialog.dismiss()
-
                 if (result != null) {
                     showSuccessDialog(result, "PDF unido exitosamente")
                 } else {
