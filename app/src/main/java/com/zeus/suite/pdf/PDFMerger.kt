@@ -32,6 +32,11 @@ class PDFMerger(private val context: Context) {
                 pfd.close()
             }
 
+            if (totalPages == 0) {
+                mergedDocument.close()
+                return null
+            }
+
             var currentPage = 0
             for (uri in uris) {
                 val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: continue
@@ -60,12 +65,12 @@ class PDFMerger(private val context: Context) {
             FileOutputStream(outputFile).use { mergedDocument.writeTo(it) }
             mergedDocument.close()
             onProgress(100, "Completado")
-            outputFile
+            return outputFile
         } catch (e: Exception) {
             e.printStackTrace()
             mergedDocument.close()
             if (outputFile.exists()) outputFile.delete()
-            null
+            return null
         }
     }
 
@@ -87,6 +92,11 @@ class PDFMerger(private val context: Context) {
                 pfds.add(pfd)
                 pageCounts.add(renderer.pageCount)
                 totalPages += renderer.pageCount
+            }
+
+            if (renderers.isEmpty()) {
+                mergedDocument.close()
+                return null
             }
 
             val maxPages = pageCounts.maxOrNull() ?: 0
@@ -119,12 +129,12 @@ class PDFMerger(private val context: Context) {
             FileOutputStream(outputFile).use { mergedDocument.writeTo(it) }
             mergedDocument.close()
             onProgress(100, "Completado")
-            outputFile
+            return outputFile
         } catch (e: Exception) {
             e.printStackTrace()
             mergedDocument.close()
             if (outputFile.exists()) outputFile.delete()
-            null
+            return null
         }
     }
 
